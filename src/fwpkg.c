@@ -3,6 +3,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+extern const void _binary_ov3_fwpkg_start;
+extern const void _binary_ov3_fwpkg_end;
+
 static int fwpkg_read_file(struct fwpkg* fwpkg, void* buf, size_t* size, zip_uint64_t index) {
 	struct zip_file* file = zip_fopen_index(fwpkg->pkg, index, 0);
 	zip_int64_t ret = 0;

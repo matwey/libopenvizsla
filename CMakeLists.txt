@@ -15,8 +15,14 @@ include_directories ("${PROJECT_SOURCE_DIR}/include")
 include_directories ("${LIBFTDI_INCLUDE_DIRS}")
 include_directories ("${LIBZIP_INCLUDE_DIRS}")
 
+add_custom_command(OUTPUT ov3.fwpkg.o
+	WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+	COMMAND ld -r -b binary -o ${CMAKE_CURRENT_BINARY_DIR}/ov3.fwpkg.o ov3.fwpkg
+	COMMAND objcopy --rename-section .data=.rodata,readonly ${CMAKE_CURRENT_BINARY_DIR}/ov3.fwpkg.o ${CMAKE_CURRENT_BINARY_DIR}/ov3.fwpkg.o
+	MAIN_DEPENDENCY ov3.fwpkg)
+
 file(GLOB_RECURSE SOURCES src/*.c)
-add_library(openvizsla SHARED ${SOURCES})
+add_library(openvizsla SHARED ${SOURCES} ov3.fwpkg.o)
 target_link_libraries(openvizsla ${LIBFTDI_LIBRARIES} ${LIBZIP_LIBRARIES})
 
 file(GLOB TOOLS tools/*)
