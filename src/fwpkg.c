@@ -27,6 +27,26 @@ static int fwpkg_read_file(struct fwpkg* fwpkg, void* buf, size_t* size, zip_uin
 	return 0;
 }
 
+static size_t fwpkg_file_size(struct fwpkg* fwpkg, zip_uint64_t index) {
+	int ret;
+	struct zip_stat sb;
+
+	ret = zip_stat_index(fwpkg->pkg, index, 0, &sb);
+	if (ret == -1) {
+		fwpkg->error_str = zip_strerror(fwpkg->pkg);
+
+		return (size_t)(-1);
+	}
+
+	if (!(sb.valid & ZIP_STAT_SIZE)) {
+		fwpkg->error_str = "Can not read uncompressed size";
+
+		return (size_t)(-1);
+	}
+
+	return (size_t)(sb.size);
+}
+
 struct fwpkg* fwpkg_new() {
 	struct fwpkg* fwpkg = malloc(sizeof(struct fwpkg));
 
@@ -84,3 +104,12 @@ int fwpkg_read_map(struct fwpkg* fwpkg, void* buf, size_t* size) {
 int fwpkg_read_bitstream(struct fwpkg* fwpkg, void* buf, size_t* size) {
 	return fwpkg_read_file(fwpkg, buf, size, fwpkg->bitstream_index);
 }
+
+size_t fwpkg_map_size(struct fwpkg* fwpkg) {
+	return fwpkg_file_size(fwpkg, fwpkg->map_index);
+}
+
+size_t fwpkg_bitstream_size(struct fwpkg* fwpkg) {
+	return fwpkg_file_size(fwpkg, fwpkg->bitstream_index);
+}
+
