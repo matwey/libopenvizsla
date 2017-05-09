@@ -7,7 +7,7 @@ include(CheckSymbolExists)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(CHECK REQUIRED check)
 pkg_check_modules(LIBFTDI REQUIRED libftdi1)
-pkg_check_modules(LIBZIP REQUIRED libzip)
+pkg_check_modules(LIBZIP REQUIRED libzip>=1.0)
 
 set(CMAKE_C_FLAGS "-std=c99 ${LIBFTDI_C_FLAGS} ${LIBZIP_C_FLAGS}")
 

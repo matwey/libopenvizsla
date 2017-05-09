@@ -3,8 +3,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-extern const void _binary_ov3_fwpkg_start;
-extern const void _binary_ov3_fwpkg_end;
+extern const char _binary_ov3_fwpkg_start[];
+extern const char _binary_ov3_fwpkg_end[];
 
 static int fwpkg_read_file(struct fwpkg* fwpkg, void* buf, size_t* size, zip_uint64_t index) {
 	struct zip_file* file = zip_fopen_index(fwpkg->pkg, index, 0);
@@ -50,6 +50,26 @@ static size_t fwpkg_file_size(struct fwpkg* fwpkg, zip_uint64_t index) {
 	return (size_t)(sb.size);
 }
 
+static int fwpkg_locate_files(struct fwpkg* fwpkg) {
+	fwpkg->map_index = zip_name_locate(fwpkg->pkg, "map.txt", ZIP_FL_NOCASE | ZIP_FL_NODIR);
+	if (fwpkg->map_index == -1) {
+		fwpkg->error_str = "Can not find map.txt file";
+
+		zip_discard(fwpkg->pkg);
+		return -1;
+	}
+
+	fwpkg->bitstream_index = zip_name_locate(fwpkg->pkg, "ov3.bit", ZIP_FL_NOCASE | ZIP_FL_NODIR);
+	if (fwpkg->bitstream_index == -1) {
+		fwpkg->error_str = "Can not find ov3.bit file";
+
+		zip_discard(fwpkg->pkg);
+		return -1;
+	}
+
+	return 0;
+}
+
 struct fwpkg* fwpkg_new() {
 	struct fwpkg* fwpkg = malloc(sizeof(struct fwpkg));
 
@@ -63,31 +83,36 @@ struct fwpkg* fwpkg_new() {
 }
 
 int fwpkg_from_file(struct fwpkg* fwpkg, const char* filename) {
+	zip_error_t ze;
 	int error;
 
-	fwpkg->pkg = zip_open(filename, ZIP_CHECKCONS, &error);
+	fwpkg->pkg = zip_open(filename, ZIP_CHECKCONS | ZIP_RDONLY, &error);
 	if (!fwpkg->pkg) {
-		fwpkg->error_str = "Can not open fwpkg file";
+		zip_error_init_with_code(&ze, error);
+		fwpkg->error_str = zip_error_strerror(&ze);
 		return -1;
 	}
 
-	fwpkg->map_index = zip_name_locate(fwpkg->pkg, "map.txt", ZIP_FL_NOCASE | ZIP_FL_NODIR);
-	if (fwpkg->map_index == -1) {
-		fwpkg->error_str = "Can not find map.txt file";
+	return fwpkg_locate_files(fwpkg);
+}
 
-		zip_discard(fwpkg->pkg);		
+int fwpkg_from_preload(struct fwpkg* fwpkg) {
+	zip_error_t error;
+	zip_source_t *src = zip_source_buffer_create((const void*)_binary_ov3_fwpkg_start,
+		(const void*)_binary_ov3_fwpkg_end - (const void*)_binary_ov3_fwpkg_start, 0, &error);
+
+	if (!src) {
+		fwpkg->error_str = zip_error_strerror(&error);
 		return -1;
 	}
 
-	fwpkg->bitstream_index = zip_name_locate(fwpkg->pkg, "ov3.bit", ZIP_FL_NOCASE | ZIP_FL_NODIR);
-	if (fwpkg->bitstream_index == -1) {
-		fwpkg->error_str = "Can not find ov3.bit file";
-
-		zip_discard(fwpkg->pkg);
+	fwpkg->pkg = zip_open_from_source(src, ZIP_CHECKCONS | ZIP_RDONLY, &error);
+	if (!fwpkg->pkg) {
+		fwpkg->error_str = zip_error_strerror(&error);
 		return -1;
 	}
 
-	return 0;
+	return fwpkg_locate_files(fwpkg);
 }
 
 void fwpkg_free(struct fwpkg* fwpkg) {
