@@ -24,25 +24,25 @@ int main(int argc, char** argv) {
 
 	ret = cha_init(&cha);
 	if (ret == -1) {
-		perror(cha_get_error_string(&cha));
+		fprintf(stderr, cha_get_error_string(&cha));
 		return 1;
 	}
 
 	ret = chb_init(&chb);
 	if (ret == -1) {
-		perror(chb_get_error_string(&chb));
+		fprintf(stderr, chb_get_error_string(&chb));
 		return 1;
 	}
 
 	ret = cha_open(&cha);
 	if (ret == -1) {
-		perror(cha_get_error_string(&cha));
+		fprintf(stderr, cha_get_error_string(&cha));
 		return 1;
 	}
 
 	ret = chb_open(&chb);
 	if (ret == -1) {
-		perror(chb_get_error_string(&chb));
+		fprintf(stderr, chb_get_error_string(&chb));
 		return 1;
 	}
 
@@ -50,43 +50,30 @@ int main(int argc, char** argv) {
 
 	ret = chb_set_high(&chb, 0);
 	if (ret == -1) {
-		perror(chb_get_error_string(&chb));
+		fprintf(stderr, chb_get_error_string(&chb));
 		return 1;
 	}
 
 	ret = chb_get_high(&chb, &status);
 	if (ret == -1) {
-		perror(chb_get_error_string(&chb));
+		fprintf(stderr, chb_get_error_string(&chb));
 		return 1;
 	}
 
-	printf("%d %x %d %d\n", ret, status, status & PORTB_INIT_BIT, status & PORTB_DONE_BIT);
+	printf("%x %d %d\n", status, status & PORTB_INIT_BIT, status & PORTB_DONE_BIT);
 
 	ret = cha_switch_fifo_mode(&cha);
 	if (ret == -1) {
-		perror(cha_get_error_string(&cha));
+		fprintf(stderr, cha_get_error_string(&cha));
 		return 1;
 	}
 
-	uint8_t cmd_send[5] = {0x55, 0x04, 0x01, 0x00, 0x5a};
-	ret = ftdi_write_data(&cha.ftdi, cmd_send, sizeof(cmd_send));
-	if (ret < 0) {
-		fprintf(stderr, "ftdi_write_data: %s\n", ftdi_get_error_string(&cha.ftdi));
+	/* All leds on */
+	ret = cha_write_reg(&cha, 0x0, 0x07);
+	if (ret == -1) {
+		fprintf(stderr, cha_get_error_string(&cha));
 		return 1;
 	}
-
-	do {
-	ret = ftdi_read_data(&cha.ftdi, cmd_send, sizeof(cmd_send));
-	if (ret < 0) {
-		fprintf(stderr, "ftdi_read_data: %s\n", ftdi_get_error_string(&cha.ftdi));
-		return 1;
-	}
-
-	printf("%d ", ret);
-	for (size_t i = 0; i < ret; i++)
-		printf("%02x ", cmd_send[i]);
-	printf("\n");
-	} while (ret == 0);
 
 	chb_destroy(&chb);
 	cha_destroy(&cha);

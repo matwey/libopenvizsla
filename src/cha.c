@@ -5,6 +5,50 @@
 #define OV_VENDOR  0x1d50
 #define OV_PRODUCT 0x607c
 
+static uint8_t cha_transaction_checksum(uint8_t* buf, size_t size) {
+	uint8_t ret = 0;
+
+	for (size_t i = 0; i < size; ++i) {
+		ret += buf[i];
+	}
+
+	return ret;
+}
+
+static int cha_transaction(struct cha* cha, uint16_t addr, uint8_t* val) {
+	uint8_t msg[5] = {0x55, addr >> 8, addr & 0xFF, *val, 0x00};
+	int ret;
+
+	msg[4] = cha_transaction_checksum(msg, 4);
+
+	if (ftdi_write_data(&cha->ftdi, msg, sizeof(msg)) < 0) {
+		cha->error_str = ftdi_get_error_string(&cha->ftdi);
+		goto fail_ftdi_write_data;
+	}
+
+	/* FIXME: assign proper timeout to libftdi */
+	do {
+		if ((ret = ftdi_read_data(&cha->ftdi, msg, sizeof(msg))) < 0) {
+			cha->error_str = ftdi_get_error_string(&cha->ftdi);
+			goto fail_ftdi_read_data;
+		}
+	} while (ret == 0);
+
+	if (cha_transaction_checksum(msg, 4) != msg[4]) {
+		cha->error_str = "Wrong checksum";
+		goto fail_transaction_checksum;
+	}
+
+	*val = msg[3];
+
+	return 0;
+
+fail_transaction_checksum:
+fail_ftdi_read_data:
+fail_ftdi_write_data:
+	return -1;
+}
+
 static int cha_switch_mode(struct cha* cha, unsigned char mode) {
 	if (ftdi_set_bitmode(&cha->ftdi, 0, BITMODE_RESET) < 0) {
 		cha->error_str = ftdi_get_error_string(&cha->ftdi);
@@ -90,6 +134,14 @@ int cha_switch_fifo_mode(struct cha* cha) {
 fail_ftdi_write_data:
 fail_switch_mode:
 	return -1;
+}
+
+int cha_write_reg(struct cha* cha, uint16_t addr, uint8_t val) {
+	return cha_transaction(cha, addr | 0x8000, &val);
+}
+
+int cha_read_reg(struct cha* cha, uint16_t addr, uint8_t* val) {
+	return cha_transaction(cha, addr, val);
 }
 
 void cha_destroy(struct cha* cha) {
