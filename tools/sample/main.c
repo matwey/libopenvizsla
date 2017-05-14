@@ -68,14 +68,6 @@ int main(int argc, char** argv) {
 		return 1;
 	}
 
-	uint8_t init_cycles[512];
-	memset(init_cycles, 0, sizeof(init_cycles));
-	ret = ftdi_write_data(&cha.ftdi, init_cycles, sizeof(init_cycles));
-	if (ret < 0) {
-		fprintf(stderr, "ftdi_write_data: %s\n", ftdi_get_error_string(&cha.ftdi));
-		return 1;
-	}
-
 	uint8_t cmd_send[5] = {0x55, 0x04, 0x01, 0x00, 0x5a};
 	ret = ftdi_write_data(&cha.ftdi, cmd_send, sizeof(cmd_send));
 	if (ret < 0) {

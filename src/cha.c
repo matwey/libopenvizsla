@@ -73,7 +73,23 @@ int cha_switch_config_mode(struct cha* cha) {
 }
 
 int cha_switch_fifo_mode(struct cha* cha) {
-	return cha_switch_mode(cha, BITMODE_SYNCFF);
+	uint8_t init_cycles[512];
+	memset(init_cycles, 0, sizeof(init_cycles));
+
+	if (cha_switch_mode(cha, BITMODE_SYNCFF) == -1) {
+		goto fail_switch_mode;
+	}
+
+	if (ftdi_write_data(&cha->ftdi, init_cycles, sizeof(init_cycles)) < 0) {
+		cha->error_str = ftdi_get_error_string(&cha->ftdi);
+		goto fail_ftdi_write_data;
+	}
+
+	return 0;
+
+fail_ftdi_write_data:
+fail_switch_mode:
+	return -1;
 }
 
 void cha_destroy(struct cha* cha) {
