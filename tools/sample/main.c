@@ -3,6 +3,8 @@
 #include <string.h>
 #include <ftdi.h>
 
+#include <chb.h>
+
 #define OV_VENDOR  0x1d50
 #define OV_PRODUCT 0x607c
 
@@ -14,7 +16,9 @@ int main(int argc, char** argv) {
 	unsigned char inp_buf[60];
 	int ret;
 
-	struct ftdi_context *ftdi_a, *ftdi_b;
+	struct chb chb;
+
+	struct ftdi_context *ftdi_a;
 	struct ftdi_version_info version;
 
 	ftdi_a = ftdi_new();
@@ -23,9 +27,15 @@ int main(int argc, char** argv) {
 		return 1;
 	}
 
-	ftdi_b = ftdi_new();
-	if (!ftdi_b) {
-		perror("ftdi_new");
+	ret = chb_init(&chb);
+	if (ret == -1) {
+		perror(chb_get_error_string(&chb));
+		return 1;
+	}
+
+	ret = chb_open(&chb);
+	if (ret == -1) {
+		perror(chb_get_error_string(&chb));
 		return 1;
 	}
 
@@ -51,24 +61,6 @@ int main(int argc, char** argv) {
 		return 1;
 	}
 
-	ret = ftdi_set_interface(ftdi_b, INTERFACE_B);
-	if (ret < 0) {
-		fprintf(stderr, "ftdi_set_interface: %s\n", ftdi_get_error_string(ftdi_b));
-		return 1;
-	}
-
-	ret = ftdi_usb_open(ftdi_b, OV_VENDOR, OV_PRODUCT);
-	if (ret < 0) {
-		fprintf(stderr, "ftdi_usb_open: %s\n", ftdi_get_error_string(ftdi_b));
-		return 1;
-	}
-
-	ret = ftdi_usb_reset(ftdi_b);
-	if (ret < 0) {
-		fprintf(stderr, "ftdi_usb_reset: %s\n", ftdi_get_error_string(ftdi_b));
-		return 1;
-	}
-
 	ret = ftdi_set_bitmode(ftdi_a, 0xFF, BITMODE_BITBANG);
 	if (ret < 0) {
 		fprintf(stderr, "ftdi_set_bitmode: %s\n", ftdi_get_error_string(ftdi_a));
@@ -81,40 +73,21 @@ int main(int argc, char** argv) {
 		return 1;
 	}
 
-	ret = ftdi_set_bitmode(ftdi_b, 0, BITMODE_RESET);
-	if (ret < 0) {
-		fprintf(stderr, "ftdi_set_bitmode: %s\n", ftdi_get_error_string(ftdi_b));
+	uint8_t status;
+
+	ret = chb_set_high(&chb, 0);
+	if (ret == -1) {
+		perror(chb_get_error_string(&chb));
 		return 1;
 	}
 
-	ret = ftdi_set_bitmode(ftdi_b, SIO_SET_BITMODE_REQUEST, BITMODE_MPSSE);
-	if (ret < 0) {
-		fprintf(stderr, "ftdi_set_bitmode: %s\n", ftdi_get_error_string(ftdi_b));
+	ret = chb_get_high(&chb, &status);
+	if (ret == -1) {
+		perror(chb_get_error_string(&chb));
 		return 1;
 	}
 
-	uint8_t mpsse_set_high[3] = {SET_BITS_HIGH, 0, 0};
-	ret = ftdi_write_data(ftdi_b, mpsse_set_high, sizeof(mpsse_set_high));
-	if (ret < 0) {
-		fprintf(stderr, "ftdi_write_data: %s\n", ftdi_get_error_string(ftdi_b));
-		return 1;
-	}
-
-	uint8_t mpsse_get_high[1] = {GET_BITS_HIGH};
-	ret = ftdi_write_data(ftdi_b, mpsse_get_high, sizeof(mpsse_get_high));
-	if (ret < 0) {
-		fprintf(stderr, "ftdi_write_data: %s\n", ftdi_get_error_string(ftdi_b));
-		return 1;
-	}
-
-	uint8_t mpsse_get_high_buf[3];
-	ret = ftdi_read_data(ftdi_b, mpsse_get_high_buf, sizeof(mpsse_get_high_buf));
-	if (ret < 0) {
-		fprintf(stderr, "ftdi_read_data: %s\n", ftdi_get_error_string(ftdi_b));
-		return 1;
-	}
-
-	printf("%d %x %d %d\n", ret, mpsse_get_high_buf[0], mpsse_get_high_buf[0] & PORTB_INIT_BIT, mpsse_get_high_buf[0] & PORTB_DONE_BIT);
+	printf("%d %x %d %d\n", ret, status, status & PORTB_INIT_BIT, status & PORTB_DONE_BIT);
 
 	ret = ftdi_set_bitmode(ftdi_a, 0xFF, BITMODE_SYNCFF);
 	if (ret < 0) {
@@ -150,10 +123,10 @@ int main(int argc, char** argv) {
 	printf("\n");
 	} while (ret == 0);
 
-	ftdi_usb_close(ftdi_b);
+	chb_destroy(&chb);
+
 	ftdi_usb_close(ftdi_a);
 
-	ftdi_free(ftdi_b);
 	ftdi_free(ftdi_a);
 
 	return 0;
