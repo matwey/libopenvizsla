@@ -5,6 +5,24 @@
 #define OV_VENDOR  0x1d50
 #define OV_PRODUCT 0x607c
 
+static int cha_switch_mode(struct cha* cha, unsigned char mode) {
+	if (ftdi_set_bitmode(&cha->ftdi, 0, BITMODE_RESET) < 0) {
+		cha->error_str = ftdi_get_error_string(&cha->ftdi);
+		goto fail_ftdi_set_bitmode_reset;
+	}
+
+	if (ftdi_set_bitmode(&cha->ftdi, 0xFF, mode) < 0) {
+		cha->error_str = ftdi_get_error_string(&cha->ftdi);
+		goto fail_ftdi_set_bitmode_set;
+	}
+
+	return 0;
+
+fail_ftdi_set_bitmode_set:
+fail_ftdi_set_bitmode_reset:
+	return -1;
+}
+
 int cha_init(struct cha* cha) {
 	memset(cha, 0, sizeof(struct cha));
 
@@ -37,24 +55,25 @@ int cha_open(struct cha* cha) {
 		goto fail_ftdi_usb_reset;
 	}
 	
-	if (ftdi_set_bitmode(&cha->ftdi, 0, BITMODE_RESET) < 0) {
-		cha->error_str = ftdi_get_error_string(&cha->ftdi);
-		goto fail_ftdi_set_bitmode_reset;
-	}
-
-	if (ftdi_set_bitmode(&cha->ftdi, 0xFF, BITMODE_SYNCFF) < 0) {
-		cha->error_str = ftdi_get_error_string(&cha->ftdi);
-		goto fail_ftdi_set_bitmode_mpsse;
+	if (cha_switch_config_mode(cha) == -1) {
+		goto fail_switch_config_mode;
 	}
 
 	return 0;
 
-fail_ftdi_set_bitmode_mpsse:
-fail_ftdi_set_bitmode_reset:
+fail_switch_config_mode:
 fail_ftdi_usb_reset:
 	ftdi_usb_close(&cha->ftdi);
 fail_ftdi_usb_open:
 	return -1;
+}
+
+int cha_switch_config_mode(struct cha* cha) {
+	return cha_switch_mode(cha, BITMODE_BITBANG);
+}
+
+int cha_switch_fifo_mode(struct cha* cha) {
+	return cha_switch_mode(cha, BITMODE_SYNCFF);
 }
 
 void cha_destroy(struct cha* cha) {

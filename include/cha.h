@@ -12,6 +12,8 @@ struct cha {
 
 int cha_init(struct cha* cha);
 int cha_open(struct cha* cha);
+int cha_switch_config_mode(struct cha* cha);
+int cha_switch_fifo_mode(struct cha* cha);
 void cha_destroy(struct cha* cha);
 
 const char* cha_get_error_string(struct cha* cha);

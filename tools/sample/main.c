@@ -40,18 +40,6 @@ int main(int argc, char** argv) {
 		return 1;
 	}
 
-	ret = ftdi_set_bitmode(&cha.ftdi, 0xFF, BITMODE_BITBANG);
-	if (ret < 0) {
-		fprintf(stderr, "ftdi_set_bitmode: %s\n", ftdi_get_error_string(&cha.ftdi));
-		return 1;
-	}
-
-	ret = ftdi_set_baudrate(&cha.ftdi, 1000000);
-	if (ret < 0) {
-		fprintf(stderr, "ftdi_set_baudrate: %s\n", ftdi_get_error_string(&cha.ftdi));
-		return 1;
-	}
-
 	ret = chb_open(&chb);
 	if (ret == -1) {
 		perror(chb_get_error_string(&chb));
@@ -74,9 +62,9 @@ int main(int argc, char** argv) {
 
 	printf("%d %x %d %d\n", ret, status, status & PORTB_INIT_BIT, status & PORTB_DONE_BIT);
 
-	ret = ftdi_set_bitmode(&cha.ftdi, 0xFF, BITMODE_SYNCFF);
-	if (ret < 0) {
-		fprintf(stderr, "ftdi_set_bitmode: %s\n", ftdi_get_error_string(&cha.ftdi));
+	ret = cha_switch_fifo_mode(&cha);
+	if (ret == -1) {
+		perror(cha_get_error_string(&cha));
 		return 1;
 	}
 
