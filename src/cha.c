@@ -15,6 +15,56 @@ static uint8_t cha_transaction_checksum(uint8_t* buf, size_t size) {
 	return ret;
 }
 
+static int cha_sync_stream(struct cha* cha, uint16_t addr) {
+	uint8_t msg[5] = {0x55, addr >> 8, addr & 0xFF, 0x00, 0x00};
+	uint8_t buf[32];
+	int ret = 0, i = 0, sync_state = 0;
+
+	msg[4] = cha_transaction_checksum(msg, 4);
+
+	if (ftdi_usb_purge_buffers(&cha->ftdi) < 0) {
+		cha->error_str = ftdi_get_error_string(&cha->ftdi);
+		goto fail_ftdi_usb_purge_buffers;
+	}
+
+	if (ftdi_write_data(&cha->ftdi, msg, sizeof(msg)) < 0) {
+		cha->error_str = ftdi_get_error_string(&cha->ftdi);
+		goto fail_ftdi_write_data;
+	}
+
+	/* FIXME: assign proper timeout to libftdi */
+	do {
+		if ((ret = ftdi_read_data(&cha->ftdi, buf, sizeof(buf))) < 0) {
+			cha->error_str = ftdi_get_error_string(&cha->ftdi);
+			goto fail_ftdi_read_data;
+		}
+
+		for (i = 0; i < ret; ++i) {
+			if (buf[i] == msg[sync_state]) {
+				sync_state++;
+			} else {
+				sync_state = 0;
+			}
+
+			if (sync_state == 5) {
+				break;
+			}
+		}
+	} while (sync_state != 5);
+
+	if (ftdi_usb_purge_buffers(&cha->ftdi) < 0) {
+		cha->error_str = ftdi_get_error_string(&cha->ftdi);
+		goto fail_ftdi_usb_purge_buffers;
+	}
+
+	return 0;
+
+fail_ftdi_usb_purge_buffers:
+fail_ftdi_read_data:
+fail_ftdi_write_data:
+	return -1;
+}
+
 static int cha_transaction(struct cha* cha, uint16_t addr, uint8_t* val) {
 	uint8_t msg[5] = {0x55, addr >> 8, addr & 0xFF, *val, 0x00};
 	int ret;
@@ -60,8 +110,14 @@ static int cha_switch_mode(struct cha* cha, unsigned char mode) {
 		goto fail_ftdi_set_bitmode_set;
 	}
 
+	if (ftdi_usb_purge_buffers(&cha->ftdi) < 0) {
+		cha->error_str = ftdi_get_error_string(&cha->ftdi);
+		goto fail_ftdi_usb_purge_buffers;
+	}
+
 	return 0;
 
+fail_ftdi_usb_purge_buffers:
 fail_ftdi_set_bitmode_set:
 fail_ftdi_set_bitmode_reset:
 	return -1;
@@ -99,11 +155,6 @@ int cha_open(struct cha* cha) {
 		goto fail_ftdi_usb_reset;
 	}
 
-	if (ftdi_usb_purge_buffers(&cha->ftdi) < 0) {
-		cha->error_str = ftdi_get_error_string(&cha->ftdi);
-		goto fail_ftdi_usb_purge_buffers;
-	}
-	
 	if (cha_switch_config_mode(cha) == -1) {
 		goto fail_switch_config_mode;
 	}
@@ -111,7 +162,6 @@ int cha_open(struct cha* cha) {
 	return 0;
 
 fail_switch_config_mode:
-fail_ftdi_usb_purge_buffers:
 fail_ftdi_usb_reset:
 	ftdi_usb_close(&cha->ftdi);
 fail_ftdi_usb_open:
@@ -135,8 +185,14 @@ int cha_switch_fifo_mode(struct cha* cha) {
 		goto fail_ftdi_write_data;
 	}
 
+	// FIXME: use loaded register
+	if (cha_sync_stream(cha, 0x8800) < 0) {
+		goto fail_cha_sync_stream;
+	}
+
 	return 0;
 
+fail_cha_sync_stream:
 fail_ftdi_write_data:
 fail_switch_mode:
 	return -1;

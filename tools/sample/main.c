@@ -69,14 +69,20 @@ int main(int argc, char** argv) {
 	}
 
 	/* All leds on */
+	// dev.regs.SDRAM_HOST_READ_GO.wr(0)
+	ret = cha_write_reg(&cha, 0xc28, 0x0);
+	if (ret == -1) {
+		fprintf(stderr, cha_get_error_string(&cha));
+		return 1;
+	}
 	// dev.regs.SDRAM_SINK_GO.wr(0)
 	ret = cha_write_reg(&cha, 0xe11, 0x0);
 	if (ret == -1) {
 		fprintf(stderr, cha_get_error_string(&cha));
 		return 1;
 	}
-	// dev.regs.SDRAM_HOST_READ_GO.wr(0)
-	ret = cha_write_reg(&cha, 0xc28, 0x0);
+	// dev.regs.CSTREAM_CFG.wr(0)
+	ret = cha_write_reg(&cha, 0x800, 0x0);
 	if (ret == -1) {
 		fprintf(stderr, cha_get_error_string(&cha));
 		return 1;
@@ -192,13 +198,6 @@ int main(int argc, char** argv) {
 		return 1;
 	}
 
-	// dev.regs.CSTREAM_CFG.wr(1)
-	ret = cha_write_reg(&cha, 0x800, 0x01);
-	if (ret == -1) {
-		fprintf(stderr, cha_get_error_string(&cha));
-		return 1;
-	}
-
 	// dev.regs.SDRAM_SINK_PTR_READ.wr(0)
 	ret = cha_write_reg(&cha, 0xe00, 0x00);
 	if (ret == -1) {
@@ -206,6 +205,12 @@ int main(int argc, char** argv) {
 		return 1;
 	}
 
+	// dev.regs.CSTREAM_CFG.wr(1)
+	ret = cha_write_reg(&cha, 0x800, 0x1);
+	if (ret == -1) {
+		fprintf(stderr, cha_get_error_string(&cha));
+		return 1;
+	}
 
 	while (1) {
 		struct ftdi_transfer_control* ctl = ftdi_read_data_submit(&cha.ftdi, inp_buf, 4096);
