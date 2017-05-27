@@ -98,6 +98,11 @@ int cha_open(struct cha* cha) {
 		cha->error_str = ftdi_get_error_string(&cha->ftdi);
 		goto fail_ftdi_usb_reset;
 	}
+
+	if (ftdi_usb_purge_buffers(&cha->ftdi) < 0) {
+		cha->error_str = ftdi_get_error_string(&cha->ftdi);
+		goto fail_ftdi_usb_purge_buffers;
+	}
 	
 	if (cha_switch_config_mode(cha) == -1) {
 		goto fail_switch_config_mode;
@@ -106,6 +111,7 @@ int cha_open(struct cha* cha) {
 	return 0;
 
 fail_switch_config_mode:
+fail_ftdi_usb_purge_buffers:
 fail_ftdi_usb_reset:
 	ftdi_usb_close(&cha->ftdi);
 fail_ftdi_usb_open:
