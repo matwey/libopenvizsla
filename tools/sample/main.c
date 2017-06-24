@@ -64,123 +64,116 @@ int main(int argc, char** argv) {
 
 	ret = cha_switch_fifo_mode(&cha);
 	if (ret == -1) {
-		fprintf(stderr, cha_get_error_string(&cha));
+		fprintf(stderr, "cha_switch_fifo_mode %s\n", cha_get_error_string(&cha));
 		return 1;
 	}
 
-	/* All leds on */
 	// dev.regs.SDRAM_HOST_READ_GO.wr(0)
 	ret = cha_write_reg(&cha, 0xc28, 0x0);
 	if (ret == -1) {
-		fprintf(stderr, cha_get_error_string(&cha));
+		fprintf(stderr, "dev.regs.SDRAM_HOST_READ_GO.wr %s\n", cha_get_error_string(&cha));
 		return 1;
 	}
 	// dev.regs.SDRAM_SINK_GO.wr(0)
 	ret = cha_write_reg(&cha, 0xe11, 0x0);
 	if (ret == -1) {
-		fprintf(stderr, cha_get_error_string(&cha));
+		fprintf(stderr, "dev.regs.SDRAM_SINK_GO.wr %s\n", cha_get_error_string(&cha));
 		return 1;
 	}
 	// dev.regs.CSTREAM_CFG.wr(0)
 	ret = cha_write_reg(&cha, 0x800, 0x0);
 	if (ret == -1) {
-		fprintf(stderr, cha_get_error_string(&cha));
+		fprintf(stderr, "dev.regs.CSTREAM_CFG.wr %s\n", cha_get_error_string(&cha));
 		return 1;
 	}
 	// dev.regs.SDRAM_SINK_RING_BASE.wr(ring_base)
 	ret = cha_write_reg(&cha, 0xe09, 0x0);
 	if (ret == -1) {
-		fprintf(stderr, cha_get_error_string(&cha));
+		fprintf(stderr, "dev.regs.SDRAM_SINK_RING_BASE.wr %s\n", cha_get_error_string(&cha));
 		return 1;
 	}
 	ret = cha_write_reg(&cha, 0xe0a, 0x0);
 	if (ret == -1) {
-		fprintf(stderr, cha_get_error_string(&cha));
+		fprintf(stderr, "dev.regs.SDRAM_SINK_RING_BASE.wr %s\n", cha_get_error_string(&cha));
 		return 1;
 	}
 	ret = cha_write_reg(&cha, 0xe0b, 0x0);
 	if (ret == -1) {
-		fprintf(stderr, cha_get_error_string(&cha));
+		fprintf(stderr, "dev.regs.SDRAM_SINK_RING_BASE.wr %s\n", cha_get_error_string(&cha));
 		return 1;
 	}
 	ret = cha_write_reg(&cha, 0xe0c, 0x0);
 	if (ret == -1) {
-		fprintf(stderr, cha_get_error_string(&cha));
+		fprintf(stderr, "dev.regs.SDRAM_SINK_RING_BASE.wr %s\n", cha_get_error_string(&cha));
 		return 1;
 	}
 	// dev.regs.SDRAM_SINK_RING_END.wr(ring_end)
 	ret = cha_write_reg(&cha, 0xe0d, 0x1);
 	if (ret == -1) {
-		fprintf(stderr, cha_get_error_string(&cha));
+		fprintf(stderr, "dev.regs.SDRAM_SINK_RING_END.wr %s\n", cha_get_error_string(&cha));
 		return 1;
 	}
 	ret = cha_write_reg(&cha, 0xe0e, 0x0);
 	if (ret == -1) {
-		fprintf(stderr, cha_get_error_string(&cha));
+		fprintf(stderr, "dev.regs.SDRAM_SINK_RING_END.wr %s\n", cha_get_error_string(&cha));
 		return 1;
 	}
 	ret = cha_write_reg(&cha, 0xe0f, 0x0);
 	if (ret == -1) {
-		fprintf(stderr, cha_get_error_string(&cha));
+		fprintf(stderr, "dev.regs.SDRAM_SINK_RING_END.wr %s\n", cha_get_error_string(&cha));
 		return 1;
 	}
 	ret = cha_write_reg(&cha, 0xe10, 0x0);
 	if (ret == -1) {
-		fprintf(stderr, cha_get_error_string(&cha));
+		fprintf(stderr, "dev.regs.SDRAM_SINK_RING_END.wr %s\n", cha_get_error_string(&cha));
 		return 1;
 	}
 	// dev.regs.SDRAM_HOST_READ_RING_BASE.wr(ring_base)
 	ret = cha_write_reg(&cha, 0xc1c, 0x0);
 	if (ret == -1) {
-		fprintf(stderr, cha_get_error_string(&cha));
+		fprintf(stderr, "dev.regs.SDRAM_HOST_READ_RING_BASE.wr %s\n", cha_get_error_string(&cha));
 		return 1;
 	}
 	ret = cha_write_reg(&cha, 0xc1d, 0x0);
 	if (ret == -1) {
-		fprintf(stderr, cha_get_error_string(&cha));
+		fprintf(stderr, "dev.regs.SDRAM_HOST_READ_RING_BASE.wr %s\n", cha_get_error_string(&cha));
 		return 1;
 	}
 	ret = cha_write_reg(&cha, 0xc1e, 0x0);
 	if (ret == -1) {
-		fprintf(stderr, cha_get_error_string(&cha));
+		fprintf(stderr, "dev.regs.SDRAM_HOST_READ_RING_BASE.wr %s\n", cha_get_error_string(&cha));
 		return 1;
 	}
 	ret = cha_write_reg(&cha, 0xc1f, 0x0);
 	if (ret == -1) {
-		fprintf(stderr, cha_get_error_string(&cha));
+		fprintf(stderr, "dev.regs.SDRAM_HOST_READ_RING_BASE.wr %s\n", cha_get_error_string(&cha));
 		return 1;
 	}
 	// dev.regs.SDRAM_HOST_READ_RING_END.wr(ring_end)
 	ret = cha_write_reg(&cha, 0xc20, 0x1);
 	if (ret == -1) {
-		fprintf(stderr, cha_get_error_string(&cha));
+		fprintf(stderr, "dev.regs.SDRAM_HOST_READ_RING_END.wr %s\n", cha_get_error_string(&cha));
 		return 1;
 	}
 	ret = cha_write_reg(&cha, 0xc21, 0x0);
 	if (ret == -1) {
-		fprintf(stderr, cha_get_error_string(&cha));
+		fprintf(stderr, "dev.regs.SDRAM_HOST_READ_RING_END.wr %s\n", cha_get_error_string(&cha));
 		return 1;
 	}
 	ret = cha_write_reg(&cha, 0xc22, 0x0);
 	if (ret == -1) {
-		fprintf(stderr, cha_get_error_string(&cha));
+		fprintf(stderr, "dev.regs.SDRAM_HOST_READ_RING_END.wr %s\n", cha_get_error_string(&cha));
 		return 1;
 	}
 	ret = cha_write_reg(&cha, 0xc23, 0x0);
 	if (ret == -1) {
-		fprintf(stderr, cha_get_error_string(&cha));
+		fprintf(stderr, "dev.regs.SDRAM_HOST_READ_RING_END.wr %s\n", cha_get_error_string(&cha));
 		return 1;
 	}
 	// dev.regs.SDRAM_SINK_GO.wr(1)
 	ret = cha_write_reg(&cha, 0xe11, 0x01);
 	if (ret == -1) {
-		fprintf(stderr, cha_get_error_string(&cha));
-		return 1;
-	}
-	// dev.regs.SDRAM_HOST_READ_GO.wr(1)
-	ret = cha_write_reg(&cha, 0xc28, 0x01);
-	if (ret == -1) {
-		fprintf(stderr, cha_get_error_string(&cha));
+		fprintf(stderr, "dev.regs.SDRAM_SINK_GO.wr=1 %s\n", cha_get_error_string(&cha));
 		return 1;
 	}
 
@@ -188,7 +181,7 @@ int main(int argc, char** argv) {
 	// self.regs.ucfg_wdata.wr(value)
 	ret = cha_write_reg(&cha, 0x402, 0x4a);
 	if (ret == -1) {
-		fprintf(stderr, cha_get_error_string(&cha));
+		fprintf(stderr, "dev.ulpiregs.func_ctl.wr %s\n", cha_get_error_string(&cha));
 		return 1;
 	}
 	// self.regs.ucfg_wcmd.wr(UCFG_REG_GO | (addr & UCFG_REG_ADDRMASK))
@@ -212,15 +205,16 @@ int main(int argc, char** argv) {
 		return 1;
 	}
 
-	while (1) {
-		struct ftdi_transfer_control* ctl = ftdi_read_data_submit(&cha.ftdi, inp_buf, 4096);
-
-		if (ftdi_transfer_data_done(ctl) < 0) {
-			fprintf(stderr, ftdi_get_error_string(&cha.ftdi));
-			return 1;
-		}
-		printf("%d %d .\n", ctl->size, ctl->offset);
+	// dev.regs.SDRAM_HOST_READ_GO.wr(1)
+	/* Triggers actual transfer */
+	ret = cha_write_reg(&cha, 0xc28, 0x01);
+	if (ret == -1) {
+		fprintf(stderr, "dev.regs.SDRAM_HOST_READ_GO.wr=1 %s\n", cha_get_error_string(&cha));
+		return 1;
 	}
+
+	printf("Start looping\n");
+	cha_loop(&cha, 10);
 
 	chb_destroy(&chb);
 	cha_destroy(&cha);
