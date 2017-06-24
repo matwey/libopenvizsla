@@ -212,6 +212,24 @@ int cha_read_reg(struct cha* cha, uint16_t addr, uint8_t* val) {
 	return cha_transaction(cha, addr, val);
 }
 
+int cha_write_reg32(struct cha* cha, uint16_t addr, uint32_t val) {
+	for (uint16_t i = addr + 4; i != addr; --i, val = (val >> 8)) {
+		if (cha_write_reg(cha, i - 1, val & 0xFF) == -1)
+			return -1;
+	}
+}
+
+int cha_read_reg32(struct cha* cha, uint16_t addr, uint32_t* val) {
+	uint8_t tmp = 0;
+
+	for (uint16_t i = addr; i != addr + 4; ++i) {
+		if (cha_read_reg(cha, i, &tmp) == -1)
+			return -1;
+
+		*val = (*val << 8) | tmp;
+	}
+}
+
 struct cha_loop_state {
 	uint8_t* buf;
 	size_t   buf_length;

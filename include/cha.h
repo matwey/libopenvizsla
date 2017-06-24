@@ -16,6 +16,8 @@ int cha_switch_config_mode(struct cha* cha);
 int cha_switch_fifo_mode(struct cha* cha);
 int cha_write_reg(struct cha* cha, uint16_t addr, uint8_t val);
 int cha_read_reg(struct cha* cha, uint16_t addr, uint8_t* val);
+int cha_write_reg32(struct cha* cha, uint16_t addr, uint32_t val);
+int cha_read_reg32(struct cha* cha, uint16_t addr, uint32_t* val);
 int cha_loop(struct cha* cha, int cnt);
 void cha_destroy(struct cha* cha);
 

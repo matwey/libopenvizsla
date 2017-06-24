@@ -87,85 +87,25 @@ int main(int argc, char** argv) {
 		return 1;
 	}
 	// dev.regs.SDRAM_SINK_RING_BASE.wr(ring_base)
-	ret = cha_write_reg(&cha, 0xe09, 0x0);
-	if (ret == -1) {
-		fprintf(stderr, "dev.regs.SDRAM_SINK_RING_BASE.wr %s\n", cha_get_error_string(&cha));
-		return 1;
-	}
-	ret = cha_write_reg(&cha, 0xe0a, 0x0);
-	if (ret == -1) {
-		fprintf(stderr, "dev.regs.SDRAM_SINK_RING_BASE.wr %s\n", cha_get_error_string(&cha));
-		return 1;
-	}
-	ret = cha_write_reg(&cha, 0xe0b, 0x0);
-	if (ret == -1) {
-		fprintf(stderr, "dev.regs.SDRAM_SINK_RING_BASE.wr %s\n", cha_get_error_string(&cha));
-		return 1;
-	}
-	ret = cha_write_reg(&cha, 0xe0c, 0x0);
+	ret = cha_write_reg32(&cha, 0xe09, 0x0);
 	if (ret == -1) {
 		fprintf(stderr, "dev.regs.SDRAM_SINK_RING_BASE.wr %s\n", cha_get_error_string(&cha));
 		return 1;
 	}
 	// dev.regs.SDRAM_SINK_RING_END.wr(ring_end)
-	ret = cha_write_reg(&cha, 0xe0d, 0x1);
-	if (ret == -1) {
-		fprintf(stderr, "dev.regs.SDRAM_SINK_RING_END.wr %s\n", cha_get_error_string(&cha));
-		return 1;
-	}
-	ret = cha_write_reg(&cha, 0xe0e, 0x0);
-	if (ret == -1) {
-		fprintf(stderr, "dev.regs.SDRAM_SINK_RING_END.wr %s\n", cha_get_error_string(&cha));
-		return 1;
-	}
-	ret = cha_write_reg(&cha, 0xe0f, 0x0);
-	if (ret == -1) {
-		fprintf(stderr, "dev.regs.SDRAM_SINK_RING_END.wr %s\n", cha_get_error_string(&cha));
-		return 1;
-	}
-	ret = cha_write_reg(&cha, 0xe10, 0x0);
+	ret = cha_write_reg32(&cha, 0xe0d, 0x01000000);
 	if (ret == -1) {
 		fprintf(stderr, "dev.regs.SDRAM_SINK_RING_END.wr %s\n", cha_get_error_string(&cha));
 		return 1;
 	}
 	// dev.regs.SDRAM_HOST_READ_RING_BASE.wr(ring_base)
-	ret = cha_write_reg(&cha, 0xc1c, 0x0);
-	if (ret == -1) {
-		fprintf(stderr, "dev.regs.SDRAM_HOST_READ_RING_BASE.wr %s\n", cha_get_error_string(&cha));
-		return 1;
-	}
-	ret = cha_write_reg(&cha, 0xc1d, 0x0);
-	if (ret == -1) {
-		fprintf(stderr, "dev.regs.SDRAM_HOST_READ_RING_BASE.wr %s\n", cha_get_error_string(&cha));
-		return 1;
-	}
-	ret = cha_write_reg(&cha, 0xc1e, 0x0);
-	if (ret == -1) {
-		fprintf(stderr, "dev.regs.SDRAM_HOST_READ_RING_BASE.wr %s\n", cha_get_error_string(&cha));
-		return 1;
-	}
-	ret = cha_write_reg(&cha, 0xc1f, 0x0);
+	ret = cha_write_reg32(&cha, 0xc1c, 0x0);
 	if (ret == -1) {
 		fprintf(stderr, "dev.regs.SDRAM_HOST_READ_RING_BASE.wr %s\n", cha_get_error_string(&cha));
 		return 1;
 	}
 	// dev.regs.SDRAM_HOST_READ_RING_END.wr(ring_end)
-	ret = cha_write_reg(&cha, 0xc20, 0x1);
-	if (ret == -1) {
-		fprintf(stderr, "dev.regs.SDRAM_HOST_READ_RING_END.wr %s\n", cha_get_error_string(&cha));
-		return 1;
-	}
-	ret = cha_write_reg(&cha, 0xc21, 0x0);
-	if (ret == -1) {
-		fprintf(stderr, "dev.regs.SDRAM_HOST_READ_RING_END.wr %s\n", cha_get_error_string(&cha));
-		return 1;
-	}
-	ret = cha_write_reg(&cha, 0xc22, 0x0);
-	if (ret == -1) {
-		fprintf(stderr, "dev.regs.SDRAM_HOST_READ_RING_END.wr %s\n", cha_get_error_string(&cha));
-		return 1;
-	}
-	ret = cha_write_reg(&cha, 0xc23, 0x0);
+	ret = cha_write_reg32(&cha, 0xc20, 0x01000000);
 	if (ret == -1) {
 		fprintf(stderr, "dev.regs.SDRAM_HOST_READ_RING_END.wr %s\n", cha_get_error_string(&cha));
 		return 1;
