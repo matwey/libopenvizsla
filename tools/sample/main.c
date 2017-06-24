@@ -68,52 +68,9 @@ int main(int argc, char** argv) {
 		return 1;
 	}
 
-	// dev.regs.SDRAM_HOST_READ_GO.wr(0)
-	ret = cha_write_reg(&cha, 0xc28, 0x0);
+	ret = cha_stop_stream(&cha);
 	if (ret == -1) {
-		fprintf(stderr, "dev.regs.SDRAM_HOST_READ_GO.wr %s\n", cha_get_error_string(&cha));
-		return 1;
-	}
-	// dev.regs.SDRAM_SINK_GO.wr(0)
-	ret = cha_write_reg(&cha, 0xe11, 0x0);
-	if (ret == -1) {
-		fprintf(stderr, "dev.regs.SDRAM_SINK_GO.wr %s\n", cha_get_error_string(&cha));
-		return 1;
-	}
-	// dev.regs.CSTREAM_CFG.wr(0)
-	ret = cha_write_reg(&cha, 0x800, 0x0);
-	if (ret == -1) {
-		fprintf(stderr, "dev.regs.CSTREAM_CFG.wr %s\n", cha_get_error_string(&cha));
-		return 1;
-	}
-	// dev.regs.SDRAM_SINK_RING_BASE.wr(ring_base)
-	ret = cha_write_reg32(&cha, 0xe09, 0x0);
-	if (ret == -1) {
-		fprintf(stderr, "dev.regs.SDRAM_SINK_RING_BASE.wr %s\n", cha_get_error_string(&cha));
-		return 1;
-	}
-	// dev.regs.SDRAM_SINK_RING_END.wr(ring_end)
-	ret = cha_write_reg32(&cha, 0xe0d, 0x01000000);
-	if (ret == -1) {
-		fprintf(stderr, "dev.regs.SDRAM_SINK_RING_END.wr %s\n", cha_get_error_string(&cha));
-		return 1;
-	}
-	// dev.regs.SDRAM_HOST_READ_RING_BASE.wr(ring_base)
-	ret = cha_write_reg32(&cha, 0xc1c, 0x0);
-	if (ret == -1) {
-		fprintf(stderr, "dev.regs.SDRAM_HOST_READ_RING_BASE.wr %s\n", cha_get_error_string(&cha));
-		return 1;
-	}
-	// dev.regs.SDRAM_HOST_READ_RING_END.wr(ring_end)
-	ret = cha_write_reg32(&cha, 0xc20, 0x01000000);
-	if (ret == -1) {
-		fprintf(stderr, "dev.regs.SDRAM_HOST_READ_RING_END.wr %s\n", cha_get_error_string(&cha));
-		return 1;
-	}
-	// dev.regs.SDRAM_SINK_GO.wr(1)
-	ret = cha_write_reg(&cha, 0xe11, 0x01);
-	if (ret == -1) {
-		fprintf(stderr, "dev.regs.SDRAM_SINK_GO.wr=1 %s\n", cha_get_error_string(&cha));
+		fprintf(stderr, "cha_stop_stream %s\n", cha_get_error_string(&cha));
 		return 1;
 	}
 
@@ -131,30 +88,25 @@ int main(int argc, char** argv) {
 		return 1;
 	}
 
-	// dev.regs.SDRAM_SINK_PTR_READ.wr(0)
-	ret = cha_write_reg(&cha, 0xe00, 0x00);
+	ret = cha_start_stream(&cha);
 	if (ret == -1) {
-		fprintf(stderr, cha_get_error_string(&cha));
-		return 1;
-	}
-
-	// dev.regs.CSTREAM_CFG.wr(1)
-	ret = cha_write_reg(&cha, 0x800, 0x1);
-	if (ret == -1) {
-		fprintf(stderr, cha_get_error_string(&cha));
-		return 1;
-	}
-
-	// dev.regs.SDRAM_HOST_READ_GO.wr(1)
-	/* Triggers actual transfer */
-	ret = cha_write_reg(&cha, 0xc28, 0x01);
-	if (ret == -1) {
-		fprintf(stderr, "dev.regs.SDRAM_HOST_READ_GO.wr=1 %s\n", cha_get_error_string(&cha));
+		fprintf(stderr, "cha_start_stream %s\n", cha_get_error_string(&cha));
 		return 1;
 	}
 
 	printf("Start looping\n");
-	cha_loop(&cha, 10);
+
+	ret = cha_loop(&cha, 10);
+	if (ret == -1) {
+		fprintf(stderr, "cha_loop %s\n", cha_get_error_string(&cha));
+		return 1;
+	}
+
+	ret = cha_stop_stream(&cha);
+	if (ret == -1) {
+		fprintf(stderr, "cha_stop_stream %s\n", cha_get_error_string(&cha));
+		return 1;
+	}
 
 	chb_destroy(&chb);
 	cha_destroy(&cha);
