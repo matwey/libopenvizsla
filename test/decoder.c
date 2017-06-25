@@ -7,8 +7,11 @@ char buf[1024];
 struct packet_decoder pd;
 struct frame_decoder fd;
 
+void callback(uint8_t* buf, size_t size, void* data) {
+}
+
 void packet_setup() {
-	ck_assert_int_eq(packet_decoder_init(&pd, buf, sizeof(buf)), 0);
+	ck_assert_int_eq(packet_decoder_init(&pd, buf, sizeof(buf), &callback, NULL), 0);
 }
 
 void packet_teardown() {
@@ -16,7 +19,7 @@ void packet_teardown() {
 }
 
 void frame_setup() {
-	ck_assert_int_eq(frame_decoder_init(&fd, buf, sizeof(buf)), 0);
+	ck_assert_int_eq(frame_decoder_init(&fd, buf, sizeof(buf), &callback, NULL), 0);
 }
 
 void frame_teardown() {

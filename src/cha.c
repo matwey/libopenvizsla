@@ -305,6 +305,13 @@ int cha_stop_stream(struct cha* cha) {
 	return 0;
 }
 
+static void cha_loop_packet_callback(uint8_t* buf, size_t size, void* data) {
+	printf("Received %d :", size);
+	for (int i = 0; i < size; ++i)
+		printf(" %02x", buf[i]);
+	printf("\n");
+}
+
 static void cha_loop_transfer_callback(struct libusb_transfer* transfer) {
 	struct frame_decoder* fd = (struct frame_decoder*)transfer->user_data;
 
@@ -329,7 +336,7 @@ int cha_loop(struct cha* cha, int cnt) {
 
 	struct frame_decoder fd;
 
-	if (frame_decoder_init(&fd, packet_buf, sizeof(packet_buf)) == -1)
+	if (frame_decoder_init(&fd, packet_buf, sizeof(packet_buf), &cha_loop_packet_callback, NULL) == -1)
 		return -1;
 
 	usb_transfer = libusb_alloc_transfer(0);
@@ -348,6 +355,10 @@ int cha_loop(struct cha* cha, int cnt) {
 	while (cnt) {
 		if ((ret = libusb_handle_events(cha->ftdi.usb_ctx)) < 0) {
 			cha->error_str = libusb_error_name(ret);
+			goto fail_libusb_handle_events;
+		}
+		if (fd.error_str) {
+			cha->error_str = fd.error_str;
 			goto fail_libusb_handle_events;
 		}
 	}

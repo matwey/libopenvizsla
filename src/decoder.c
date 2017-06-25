@@ -2,10 +2,12 @@
 
 #include <assert.h>
 
-int packet_decoder_init(struct packet_decoder* pd, uint8_t* buf, size_t size) {
+int packet_decoder_init(struct packet_decoder* pd, uint8_t* buf, size_t size, packet_decoder_callback callback, void* data) {
 	pd->buf = buf;
 	pd->buf_actual_length = 0;
 	pd->buf_length = size;
+	pd->callback = callback;
+	pd->user_data = data;
 	pd->error_str = NULL;
 	pd->state = NEED_PACKET_MAGIC;
 	pd->required_length = 0;
@@ -56,6 +58,7 @@ int packet_decoder_proc(struct packet_decoder* pd, uint8_t* buf, size_t size) {
 
 				if (pd->required_length == 0) {
 					/* Finalize packet here*/
+					pd->callback(pd->buf, pd->buf_actual_length, pd->user_data);
 
 					pd->buf_actual_length = 0;
 					pd->state = NEED_PACKET_MAGIC;
@@ -70,8 +73,8 @@ end:
 	return size - (end - buf);
 }
 
-int frame_decoder_init(struct frame_decoder* fd, uint8_t* buf, size_t size) {
-	if (packet_decoder_init(&fd->pd, buf, size) != 0)
+int frame_decoder_init(struct frame_decoder* fd, uint8_t* buf, size_t size, packet_decoder_callback callback, void* data) {
+	if (packet_decoder_init(&fd->pd, buf, size, callback, data) != 0)
 		return -1;
 
 	fd->error_str = NULL;
@@ -103,8 +106,10 @@ int frame_decoder_proc(struct frame_decoder* fd, uint8_t* buf, size_t size) {
 				int ret = 0;
 
 				ret = packet_decoder_proc(&fd->pd, buf, size);
-				if (ret == -1)
+				if (ret == -1) {
+					fd->error_str = fd->pd.error_str;
 					return -1;
+				}
 
 				buf += ret;
 				fd->required_length -= ret;
