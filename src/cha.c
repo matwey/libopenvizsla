@@ -1,4 +1,5 @@
 #include <cha.h>
+#include <decoder.h>
 
 #include <assert.h>
 #include <string.h>
@@ -304,85 +305,14 @@ int cha_stop_stream(struct cha* cha) {
 	return 0;
 }
 
-struct cha_loop_state {
-	uint8_t* buf;
-	size_t   buf_length;
-	size_t   buf_actual_length;
-
-	enum state {
-		NEED_SDRAM_MARKER,
-		NEED_SDRAM_LENGTH,
-		NEED_SDRAM_DATA
-	} state;
-
-	size_t   required_pkg;
-	size_t   required_sdram;
-	enum pkg_state {
-		NEED_PKG_LENGTH,
-		NEED_PKG_DATA
-	} pkg_state;
-};
-
 static void cha_loop_transfer_callback(struct libusb_transfer* transfer) {
-	struct cha_loop_state* state = (struct cha_loop_state*)transfer->user_data;
-	uint8_t* inp = transfer->buffer;
-	size_t   inp_length = transfer->actual_length;
+	struct frame_decoder* fd = (struct frame_decoder*)transfer->user_data;
 
 	libusb_submit_transfer(transfer);
 
-	if (inp_length > 2) {
-		inp += 2;
-		inp_length -= 2;
-
-		while (inp_length) {
-			switch (state->state) {
-				case NEED_SDRAM_MARKER: {
-					assert(inp[0] == 0xd0);
-
-					state->state = NEED_SDRAM_LENGTH;
-
-					inp += 1;
-					inp_length -= 1;
-				} break;
-				case NEED_SDRAM_LENGTH: {
-					state->state = NEED_SDRAM_DATA;
-					state->required_sdram = ((size_t)(inp[0])+1)*2;
-
-					inp += 1;
-					inp_length -= 1;
-				} break;
-				case NEED_SDRAM_DATA: {
-					if (state->pkg_state == NEED_PKG_LENGTH) {
-						if (state->buf_actual_length > 4) {
-							state->pkg_state == NEED_PKG_DATA;
-							state->required_pkg = (state->buf[4] << 8) | state->buf[3] + 8 - state->buf_actual_length;
-						} else {
-							state->required_pkg = 5;
-						}
-					}
-
-					size_t len = (state->required_sdram < state->required_pkg ? state->required_sdram : state->required_pkg);
-					len = (len < inp_length ? len : inp_length);
-
-					memcpy(state->buf + state->buf_actual_length, inp, len);
-
-					inp += len;
-					inp_length -= len;
-					state->buf_actual_length += len;
-					state->required_sdram -= len;
-					state->required_pkg -= len;
-
-					if (state->pkg_state == NEED_PKG_DATA && state->required_pkg == 0) {
-						state->buf_actual_length = 0;
-						state->pkg_state = NEED_PKG_LENGTH;
-					}
-
-					if (state->required_sdram == 0) {
-						state->state = NEED_SDRAM_MARKER;
-					}
-				} break;
-			}
-		}
+	if (transfer->actual_length > 2) {
+		/* Skip FTDI header */
+		frame_decoder_proc(fd, transfer->buffer + 2, transfer->actual_length - 2);
 	}
 }
 
@@ -394,17 +324,13 @@ int cha_loop(struct cha* cha, int cnt) {
 	*/
 	int ret;
 	struct libusb_transfer* usb_transfer;
-	// FIXME:
-	unsigned char buf[1024+cha->ftdi.max_packet_size];
-	struct cha_loop_state state;
+	unsigned char libusb_buf[cha->ftdi.max_packet_size];
+	unsigned char packet_buf[1024];
 
-	state.buf = buf;
-	state.buf_length = 1024;
-	state.buf_actual_length = 0;
-	state.state = NEED_SDRAM_MARKER;
-	state.required_pkg = 0;
-	state.required_sdram = 0;
-	state.pkg_state = NEED_PKG_LENGTH;
+	struct frame_decoder fd;
+
+	if (frame_decoder_init(&fd, packet_buf, sizeof(packet_buf)) == -1)
+		return -1;
 
 	usb_transfer = libusb_alloc_transfer(0);
 	if (!usb_transfer) {
@@ -412,7 +338,7 @@ int cha_loop(struct cha* cha, int cnt) {
 		goto fail_libusb_alloc_transfer;
 	}
 
-	libusb_fill_bulk_transfer(usb_transfer, cha->ftdi.usb_dev, cha->ftdi.out_ep, buf + 1024, cha->ftdi.max_packet_size, &cha_loop_transfer_callback, &state, 100);
+	libusb_fill_bulk_transfer(usb_transfer, cha->ftdi.usb_dev, cha->ftdi.out_ep, libusb_buf, cha->ftdi.max_packet_size, &cha_loop_transfer_callback, &fd, 100);
 
 	if ((ret = libusb_submit_transfer(usb_transfer)) < 0) {
 		cha->error_str = libusb_error_name(ret);

@@ -78,13 +78,13 @@ int main(int argc, char** argv) {
 	// self.regs.ucfg_wdata.wr(value)
 	ret = cha_write_reg(&cha, 0x402, 0x4a);
 	if (ret == -1) {
-		fprintf(stderr, "dev.ulpiregs.func_ctl.wr %s\n", cha_get_error_string(&cha));
+		fprintf(stderr, "self.regs.ucfg_wdata.wr %s\n", cha_get_error_string(&cha));
 		return 1;
 	}
 	// self.regs.ucfg_wcmd.wr(UCFG_REG_GO | (addr & UCFG_REG_ADDRMASK))
 	ret = cha_write_reg(&cha, 0x403, 0x80 | (0x04 & 0x3F));
 	if (ret == -1) {
-		fprintf(stderr, cha_get_error_string(&cha));
+		fprintf(stderr, "self.regs.ucfg_wcmd.wr %s\n", cha_get_error_string(&cha));
 		return 1;
 	}
 
