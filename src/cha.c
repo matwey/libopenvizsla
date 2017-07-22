@@ -9,6 +9,20 @@
 #define OV_VENDOR  0x1d50
 #define OV_PRODUCT 0x607c
 
+inline static uint8_t bitreverse8(uint8_t x) {
+	static const uint8_t map[256] = {
+#define R2(n) n, n + 2*64, n + 1*64, n + 3*64
+#define R4(n) R2(n), R2(n + 2*16), R2(n + 1*16), R2(n + 3*16)
+#define R6(n) R4(n), R4(n + 2*4), R4(n + 1*4), R4(n + 3*4)
+	R6(0), R6(2), R6(1), R6(3)
+#undef R6
+#undef R4
+#undef R2
+	};
+
+	return map[x];
+}
+
 static uint8_t cha_transaction_checksum(uint8_t* buf, size_t size) {
 	uint8_t ret = 0;
 
@@ -114,6 +128,11 @@ static int cha_switch_mode(struct cha* cha, unsigned char mode) {
 		goto fail_ftdi_set_bitmode_set;
 	}
 
+	if (ftdi_set_baudrate(&cha->ftdi, 31500) < 0) {
+		cha->error_str = ftdi_get_error_string(&cha->ftdi);
+		goto fail_ftdi_set_baudrate;
+	}
+
 	if (ftdi_usb_purge_buffers(&cha->ftdi) < 0) {
 		cha->error_str = ftdi_get_error_string(&cha->ftdi);
 		goto fail_ftdi_usb_purge_buffers;
@@ -123,6 +142,7 @@ static int cha_switch_mode(struct cha* cha, unsigned char mode) {
 
 fail_ftdi_usb_purge_buffers:
 fail_ftdi_set_bitmode_set:
+fail_ftdi_set_baudrate:
 fail_ftdi_set_bitmode_reset:
 	return -1;
 }
@@ -371,6 +391,46 @@ fail_libusb_submit_transfer:
 	libusb_free_transfer(usb_transfer);
 fail_libusb_alloc_transfer:
 	return -1;
+}
+
+int cha_load_firmware(struct cha* cha, const uint8_t* data, size_t length) {
+	uint8_t buf[4 * 1024];
+	struct ftdi_transfer_control* tc = NULL;
+
+	while (length) {
+		size_t i = 0;
+
+		for (i = 0; i < sizeof(buf) && length; i++, length--, data++) {
+			buf[i] = bitreverse8(*data);
+		}
+
+		if (tc && ftdi_transfer_data_done(tc) < 0) {
+			cha->error_str = ftdi_get_error_string(&cha->ftdi);
+			return -1;
+		}
+
+		if (!(tc = ftdi_write_data_submit(&cha->ftdi, buf, i))) {
+			cha->error_str = ftdi_get_error_string(&cha->ftdi);
+			return -1;
+		}
+	}
+
+	if (ftdi_transfer_data_done(tc) < 0) {
+		cha->error_str = ftdi_get_error_string(&cha->ftdi);
+		return -1;
+	}
+
+	uint8_t init_cycles[512];
+	memset(init_cycles, 0, sizeof(init_cycles));
+
+	if (ftdi_write_data(&cha->ftdi, init_cycles, sizeof(init_cycles)) < 0) {
+		cha->error_str = ftdi_get_error_string(&cha->ftdi);
+		return -1;
+	}
+
+	usleep(10000);
+
+	return 0;
 }
 
 void cha_destroy(struct cha* cha) {

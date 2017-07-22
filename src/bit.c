@@ -9,7 +9,7 @@ static int bit_do_parse_field1_2(struct bit* bit) {
 	static const uint8_t header[] = {0x00,0x09,0x0f,0xf0,0x0f,0xf0,0x0f,0xf0,0x0f,0xf0,0x00,0x00,0x01};
 
 	if (bit->size < sizeof(header) || memcmp(bit->data, header, sizeof(header)) != 0) {
-		bit->error_str = "Wrong bit header";
+		bit->error_str = "Wrong bitstream header";
 		return -1;
 	}
 
@@ -98,9 +98,6 @@ static int bit_do_parse_field7(struct bit* bit) {
 		bit->error_str = "Too few bytes";
 		return -1;
 	}
-
-	bit->data += len;
-	bit->size -= len;
 
 	return 0;
 }

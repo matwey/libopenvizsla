@@ -16,6 +16,8 @@ int chb_set_low(struct chb* chb, uint8_t val, uint8_t mask);
 int chb_set_high(struct chb* chb, uint8_t val, uint8_t mask);
 int chb_get_low(struct chb* chb, uint8_t* val);
 int chb_get_high(struct chb* chb, uint8_t* val);
+int chb_get_status(struct chb* chb, uint8_t* status);
+int chb_switch_program_mode(struct chb* chb);
 void chb_destroy(struct chb* chb);
 
 const char* chb_get_error_string(struct chb* chb);
