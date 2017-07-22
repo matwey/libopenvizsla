@@ -48,7 +48,7 @@ int main(int argc, char** argv) {
 
 	uint8_t status;
 
-	ret = chb_set_high(&chb, 0);
+	ret = chb_set_high(&chb, 0, 0);
 	if (ret == -1) {
 		fprintf(stderr, chb_get_error_string(&chb));
 		return 1;

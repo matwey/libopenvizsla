@@ -61,8 +61,8 @@ void chb_destroy(struct chb* chb) {
 	ftdi_deinit(&chb->ftdi);
 }
 
-int chb_set_high(struct chb* chb, uint8_t val) {
-	const uint8_t mpsse_set_high[3] = {SET_BITS_HIGH, val, 0};
+static int chb_set(struct chb* chb, uint8_t cmd, uint8_t val, uint8_t mask) {
+	const uint8_t mpsse_set_high[3] = {cmd, val, mask};
 
 	if (ftdi_write_data(&chb->ftdi, mpsse_set_high, sizeof(mpsse_set_high)) < 0) {
 		chb->error_str = ftdi_get_error_string(&chb->ftdi);
@@ -75,8 +75,16 @@ fail_ftdi_write_data:
 	return -1;
 }
 
-int chb_get_high(struct chb* chb, uint8_t* val) {
-	const uint8_t mpsse_get_high[1] = {GET_BITS_HIGH};
+int chb_set_low(struct chb* chb, uint8_t val, uint8_t mask) {
+	return chb_set(chb, SET_BITS_LOW, val, mask);
+}
+
+int chb_set_high(struct chb* chb, uint8_t val, uint8_t mask) {
+	return chb_set(chb, SET_BITS_HIGH, val, mask);
+}
+
+static int chb_get(struct chb* chb, uint8_t* val, uint8_t cmd) {
+	const uint8_t mpsse_get_high[1] = {cmd};
 
 	if (ftdi_write_data(&chb->ftdi, mpsse_get_high, sizeof(mpsse_get_high)) < 0) {
 		chb->error_str = ftdi_get_error_string(&chb->ftdi);
@@ -93,6 +101,14 @@ int chb_get_high(struct chb* chb, uint8_t* val) {
 fail_ftdi_read_data:
 fail_ftdi_write_data:
 	return -1;
+}
+
+int chb_get_low(struct chb* chb, uint8_t* val) {
+	return chb_get(chb, val, GET_BITS_LOW);
+}
+
+int chb_get_high(struct chb* chb, uint8_t* val) {
+	return chb_get(chb, val, GET_BITS_HIGH);
 }
 
 const char* chb_get_error_string(struct chb* chb) {
