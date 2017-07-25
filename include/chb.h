@@ -12,8 +12,8 @@ struct chb {
 
 int chb_init(struct chb* chb);
 int chb_open(struct chb* chb);
-int chb_set_low(struct chb* chb, uint8_t val, uint8_t mask);
-int chb_set_high(struct chb* chb, uint8_t val, uint8_t mask);
+int chb_set_low(struct chb* chb, uint8_t val);
+int chb_set_high(struct chb* chb, uint8_t val);
 int chb_get_low(struct chb* chb, uint8_t* val);
 int chb_get_high(struct chb* chb, uint8_t* val);
 int chb_get_status(struct chb* chb, uint8_t* status);

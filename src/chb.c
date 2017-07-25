@@ -82,9 +82,18 @@ int chb_open(struct chb* chb) {
 	if (chb_tck_divisor(chb, 0) < 0) {
 		goto fail_chb_tck_divisor;
 	}
+
+	/*
+	 * Low part of PORT B is routed to JTAG
+	 * During non-JTAG operation, TMS is recommended to be driven high.
+	 */
+	if (chb_set_low(chb, PORTB_TMS_BIT) < 0) {
+		goto fail_set_low;
+	}
   
 	return 0;
 
+fail_set_low:
 fail_chb_tck_divisor:
 fail_ftdi_set_bitmode_mpsse:
 fail_ftdi_set_bitmode_reset:
@@ -98,12 +107,27 @@ void chb_destroy(struct chb* chb) {
 	ftdi_deinit(&chb->ftdi);
 }
 
-int chb_set_low(struct chb* chb, uint8_t val, uint8_t mask) {
-	return chb_set(chb, SET_BITS_LOW, val, mask);
+int chb_set_low(struct chb* chb, uint8_t val) {
+	/*
+	 * BD0 (TCK) output
+	 * BD1 (TDI) output
+	 * BD2 (TDO) input
+	 * BD3 (TMS) output
+	 */
+	return chb_set(chb, SET_BITS_LOW, val, PORTB_TCK_BIT | PORTB_TDI_BIT | PORTB_TMS_BIT);
 }
 
-int chb_set_high(struct chb* chb, uint8_t val, uint8_t mask) {
-	return chb_set(chb, SET_BITS_HIGH, val, mask);
+int chb_set_high(struct chb* chb, uint8_t val) {
+	/*
+	 * BC0 (CSI)  output active-low
+	 * BC1 (RDWR) output active-low
+	 * BC2 (DONE) input  active-high
+	 * BC3 (PROG) output
+	 * BC5 (INIT) input  active-low
+	 * BC6 (M0)   output
+	 * BC7 (M1)   output
+	 */
+	return chb_set(chb, SET_BITS_HIGH, val, PORTB_CSI_BIT | PORTB_RDWR_BIT | PORTB_M1_BIT | PORTB_PROG_BIT | PORTB_M0_BIT);
 }
 
 static int chb_get(struct chb* chb, uint8_t* val, uint8_t cmd) {
@@ -135,9 +159,6 @@ int chb_get_high(struct chb* chb, uint8_t* val) {
 }
 
 int chb_get_status(struct chb* chb, uint8_t* status) {
-	if (chb_set_high(chb, 0, 0) < 0)
-		return -1;
-
 	if (chb_get_high(chb, status) < 0)
 		return -1;
 
@@ -149,24 +170,19 @@ int chb_switch_program_mode(struct chb* chb) {
 	uint8_t status;
 	int try = 3;
 
-	if (chb_set_low(chb, PORTB_TMS_BIT, PORTB_TCK_BIT | PORTB_TDI_BIT | PORTB_TMS_BIT) < 0)
+	// Mode pins       M[1:0] = 0b10 (active-low)
+	if (chb_set_high(chb, PORTB_CSI_BIT | PORTB_RDWR_BIT | PORTB_PROG_BIT | PORTB_M1_BIT) < 0)
 		return -1;
 
-	if (chb_set_high(chb,
-		PORTB_CSI_BIT | PORTB_RDWR_BIT | PORTB_M1_BIT | PORTB_PROG_BIT,
-		PORTB_CSI_BIT | PORTB_RDWR_BIT | PORTB_M1_BIT | PORTB_PROG_BIT | PORTB_M0_BIT) < 0)
+	// Full-chip reset PROG low
+	if (chb_set_high(chb, PORTB_CSI_BIT | PORTB_M1_BIT) < 0)
 		return -1;
 
-	if (chb_set_high(chb,
-		PORTB_CSI_BIT | PORTB_RDWR_BIT | PORTB_M1_BIT,
-		PORTB_CSI_BIT | PORTB_RDWR_BIT | PORTB_M1_BIT | PORTB_PROG_BIT | PORTB_M0_BIT) < 0)
+	// Full-chip reset PROG high
+	if (chb_set_high(chb, PORTB_PROG_BIT | PORTB_M1_BIT) < 0)
 		return -1;
 
-	if (chb_set_high(chb,
-		PORTB_M1_BIT | PORTB_PROG_BIT,
-		PORTB_CSI_BIT | PORTB_RDWR_BIT | PORTB_M1_BIT | PORTB_PROG_BIT | PORTB_M0_BIT) < 0)
-		return -1;
-
+	try = 3;
 	while (try-- && (ret = chb_get_high(chb, &status)) == 0 && (status & PORTB_DONE_BIT))
 		usleep(10000);
 

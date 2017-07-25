@@ -5,6 +5,22 @@
 
 #include <arpa/inet.h>
 
+#define PORTB_DONE_BIT (1 << 2)
+
+inline static uint8_t bitreverse8(uint8_t x) {
+	static const uint8_t map[256] = {
+#define R2(n) n, n + 2*64, n + 1*64, n + 3*64
+#define R4(n) R2(n), R2(n + 2*16), R2(n + 1*16), R2(n + 3*16)
+#define R6(n) R4(n), R4(n + 2*4), R4(n + 1*4), R4(n + 3*4)
+	R6(0), R6(2), R6(1), R6(3)
+#undef R6
+#undef R4
+#undef R2
+	};
+
+	return map[x];
+}
+
 static int bit_do_parse_field1_2(struct bit* bit) {
 	static const uint8_t header[] = {0x00,0x09,0x0f,0xf0,0x0f,0xf0,0x0f,0xf0,0x0f,0xf0,0x00,0x00,0x01};
 
@@ -127,6 +143,61 @@ int bit_init(struct bit* bit, const void* data, size_t size) {
 	bit->size = size;
 
 	return bit_do_parse(bit);
+}
+
+int bit_load_firmware(struct bit* bit, struct cha* cha, struct chb* chb) {
+	uint8_t buf[4 * 1024];
+	const uint8_t* data = bit->data;
+	size_t length = bit->size;
+	struct ftdi_transfer_control* tc = NULL;
+	int ret;
+	uint8_t status;
+	int try = 3;
+
+	while (length) {
+		size_t i = 0;
+
+		for (i = 0; i < sizeof(buf) && length; i++, length--, data++) {
+			buf[i] = bitreverse8(*data);
+		}
+
+		if (tc && ftdi_transfer_data_done(tc) < 0) {
+			bit->error_str = ftdi_get_error_string(&cha->ftdi);
+			return -1;
+		}
+
+		if (!(tc = ftdi_write_data_submit(&cha->ftdi, buf, i))) {
+			bit->error_str = ftdi_get_error_string(&cha->ftdi);
+			return -1;
+		}
+	}
+
+	if (ftdi_transfer_data_done(tc) < 0) {
+		bit->error_str = ftdi_get_error_string(&cha->ftdi);
+		return -1;
+	}
+
+	uint8_t init_cycles[8];
+	memset(init_cycles, 0, sizeof(init_cycles));
+
+	try = 3;
+	while (try--
+	       && (ret = ftdi_write_data(&cha->ftdi, init_cycles, sizeof(init_cycles))) > 0
+	       && (ret = chb_get_high(chb, &status)) == 0
+	       && !(status & PORTB_DONE_BIT)) {
+
+		usleep(10000);
+	}
+
+	if (ret < 0)
+		return -1;
+
+	if (try == 0 && !(status & PORTB_DONE_BIT)) {
+		bit->error_str = "done bit stuck low after programming";
+		return -1;
+	}
+
+	return 0;
 }
 
 const char* bit_get_error_string(struct bit* bit) {

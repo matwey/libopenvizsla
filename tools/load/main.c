@@ -83,21 +83,21 @@ int main(int argc, char** argv) {
 		return 1;
 	}
 
-	if (print_status(&chb) < 0)
-		return 1;
-
 	if (cha_switch_config_mode(&cha) < 0) {
 		fprintf(stderr, cha_get_error_string(&cha));
 		return 1;
 	}
+
+	if (print_status(&chb) < 0)
+		return 1;
 
 	if (chb_switch_program_mode(&chb) < 0) {
 		fprintf(stderr, chb_get_error_string(&chb));
 		return 1;
 	}
 
-	if (cha_load_firmware(&cha, (uint8_t*)bit.data, bit.bit_length) < 0) {
-		fprintf(stderr, cha_get_error_string(&cha));
+	if (bit_load_firmware(&bit, &cha, &chb) < 0) {
+		fprintf(stderr, bit_get_error_string(&bit));
 		return 1;
 	}
 
@@ -105,9 +105,6 @@ int main(int argc, char** argv) {
 		fprintf(stderr, cha_get_error_string(&cha));
 		return 1;
 	}
-
-	if (print_status(&chb) < 0)
-		return 1;
 
 	chb_destroy(&chb);
 	cha_destroy(&cha);

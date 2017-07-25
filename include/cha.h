@@ -22,7 +22,6 @@ int cha_read_reg32(struct cha* cha, uint16_t addr, uint32_t* val);
 int cha_start_stream(struct cha* cha);
 int cha_stop_stream(struct cha* cha);
 int cha_loop(struct cha* cha, int cnt);
-int cha_load_firmware(struct cha* cha, const uint8_t* data, size_t length);
 void cha_destroy(struct cha* cha);
 
 const char* cha_get_error_string(struct cha* cha);

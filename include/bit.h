@@ -1,6 +1,9 @@
 #ifndef _BIT_H
 #define _BIT_H
 
+#include <cha.h>
+#include <chb.h>
+
 #include <memory.h>
 
 struct bit {
@@ -17,6 +20,7 @@ struct bit {
 };
 
 int bit_init(struct bit* bit, const void* data, size_t size);
+int bit_load_firmware(struct bit* bit, struct cha* cha, struct chb* chb);
 
 const char* bit_get_error_string(struct bit* bit);
 
