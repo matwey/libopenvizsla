@@ -184,10 +184,7 @@ int bit_load_firmware(struct bit* bit, struct cha* cha, struct chb* chb) {
 	while (try--
 	       && (ret = ftdi_write_data(&cha->ftdi, init_cycles, sizeof(init_cycles))) > 0
 	       && (ret = chb_get_high(chb, &status)) == 0
-	       && !(status & PORTB_DONE_BIT)) {
-
-		usleep(10000);
-	}
+	       && !(status & PORTB_DONE_BIT));
 
 	if (ret < 0)
 		return -1;
