@@ -242,6 +242,7 @@ int cha_read_reg32(struct cha* cha, uint16_t addr, uint32_t* val) {
 }
 
 int cha_start_stream(struct cha* cha) {
+	uint8_t status;
 	int ret = 0;
 
 	// dev.regs.SDRAM_SINK_RING_BASE.wr(ring_base)
@@ -269,15 +270,39 @@ int cha_start_stream(struct cha* cha) {
 	if (ret == -1)
 		return ret;
 
+	// dev.regs.SDRAM_SINK_GO.wr(1)
+	ret = cha_write_reg(cha, 0xe11, 1);
+	if (ret == -1)
+		return ret;
+
+	ret = cha_read_reg(cha, 0x801, &status);
+	if (ret == -1)
+		return ret;
+
+	printf("status = %x\n", status);
+
+	ret = cha_read_reg(cha, 0x800, &status);
+	if (ret == -1)
+		return ret;
+
+	printf("cfg = %x\n", status);
+
 	// dev.regs.CSTREAM_CFG.wr(1)
 	ret = cha_write_reg(cha, 0x800, 1);
 	if (ret == -1)
 		return ret;
 
-	// dev.regs.SDRAM_SINK_GO.wr(1)
-	ret = cha_write_reg(cha, 0xe11, 1);
+	ret = cha_read_reg(cha, 0x801, &status);
 	if (ret == -1)
 		return ret;
+
+	printf("status = %x (cstream <- 1)\n", status);
+
+	ret = cha_read_reg(cha, 0x800, &status);
+	if (ret == -1)
+		return ret;
+
+	printf("cfg = %x\n", status);
 
 	// dev.regs.SDRAM_HOST_READ_GO.wr(1)
 	ret = cha_write_reg(cha, 0xc28, 1);
@@ -289,6 +314,7 @@ int cha_start_stream(struct cha* cha) {
 
 int cha_stop_stream(struct cha* cha) {
 	int ret = 0;
+	uint8_t status;
 
 	// dev.regs.SDRAM_HOST_READ_GO.wr(0)
 	// FIXME: use loaded register
@@ -296,15 +322,35 @@ int cha_stop_stream(struct cha* cha) {
 	if (ret == -1)
 		return ret;
 
-	// dev.regs.SDRAM_SINK_GO.wr(0)
-	// FIXME: use loaded register
-	ret = cha_write_reg(cha, 0xe11, 0);
+	ret = cha_read_reg(cha, 0x800, &status);
 	if (ret == -1)
 		return ret;
+
+	printf("cfg = %x\n", status);
+
+	ret = cha_read_reg(cha, 0x801, &status);
+	if (ret == -1)
+		return ret;
+
+	printf("status = %x\n", status);
 
 	// dev.regs.CSTREAM_CFG.wr(0)
 	// FIXME: use loaded register
 	ret = cha_write_reg(cha, 0x800, 0);
+	if (ret == -1)
+		return ret;
+
+	do {
+		ret = cha_read_reg(cha, 0x801, &status);
+		if (ret == -1)
+			return ret;
+
+		printf("status = %x (cstream <- 0)\n", status);
+	} while(status);
+
+	// dev.regs.SDRAM_SINK_GO.wr(0)
+	// FIXME: use loaded register
+	ret = cha_write_reg(cha, 0xe11, 0);
 	if (ret == -1)
 		return ret;
 
