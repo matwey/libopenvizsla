@@ -13,7 +13,9 @@ set(CMAKE_C_FLAGS "-std=c99 ${LIBFTDI_C_FLAGS} ${LIBZIP_C_FLAGS}")
 
 include_directories ("${PROJECT_SOURCE_DIR}/include")
 include_directories ("${LIBFTDI_INCLUDE_DIRS}")
+if(LIBZIP_INCLUDE_DIRS)
 include_directories ("${LIBZIP_INCLUDE_DIRS}")
+endif(LIBZIP_INCLUDE_DIRS)
 
 add_custom_command(OUTPUT ov3.fwpkg.o
 	WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
