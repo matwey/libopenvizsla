@@ -269,8 +269,8 @@ int cha_start_stream(struct cha* cha) {
 	if (ret == -1)
 		return ret;
 
-	// dev.regs.CSTREAM_CFG.wr(1)
-	ret = cha_write_reg(cha, 0x800, 1);
+	// dev.regs.SDRAM_HOST_READ_GO.wr(1)
+	ret = cha_write_reg(cha, 0xc28, 1);
 	if (ret == -1)
 		return ret;
 
@@ -279,8 +279,8 @@ int cha_start_stream(struct cha* cha) {
 	if (ret == -1)
 		return ret;
 
-	// dev.regs.SDRAM_HOST_READ_GO.wr(1)
-	ret = cha_write_reg(cha, 0xc28, 1);
+	// dev.regs.CSTREAM_CFG.wr(1)
+	ret = cha_write_reg(cha, 0x800, 1);
 	if (ret == -1)
 		return ret;
 
