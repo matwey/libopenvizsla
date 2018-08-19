@@ -2,15 +2,14 @@
 
 #include <assert.h>
 
-int packet_decoder_init(struct packet_decoder* pd, uint8_t* buf, size_t size, packet_decoder_callback callback, void* data) {
-	pd->buf = buf;
+int packet_decoder_init(struct packet_decoder* pd, struct packet* p, size_t size, packet_decoder_callback callback, void* data) {
+	pd->packet = p;
 	pd->buf_actual_length = 0;
 	pd->buf_length = size;
 	pd->callback = callback;
 	pd->user_data = data;
 	pd->error_str = NULL;
 	pd->state = NEED_PACKET_MAGIC;
-	pd->required_length = 0;
 
 	return 0;
 }
@@ -24,41 +23,54 @@ int packet_decoder_proc(struct packet_decoder* pd, uint8_t* buf, size_t size) {
 				assert(pd->buf_actual_length == 0);
 				assert(pd->buf_length > 0);
 
-				if (buf[0] != 0xa0) {
+				if (*(buf++) != 0xa0) {
 					pd->error_str = "Wrong packet magic";
 					return -1;
 				}
 
-				pd->buf[pd->buf_actual_length++] = *(buf++);
-				pd->state = NEED_PACKET_LENGTH;
+				pd->state = NEED_PACKET_FLAGS_LO;
 			} break;
-			case NEED_PACKET_LENGTH: {
-				assert(pd->buf_actual_length >= 1);
-				assert(pd->buf_actual_length < 5);
-				assert(pd->buf_length > 5);
+			case NEED_PACKET_FLAGS_LO: {
+				pd->packet->flags = *(buf++);
+				pd->state = NEED_PACKET_FLAGS_HI;
+			} break;
+			case NEED_PACKET_FLAGS_HI: {
+				pd->packet->flags |= *(buf++) << 8;
+				pd->state = NEED_PACKET_LENGTH_LO;
+			} break;
+			case NEED_PACKET_LENGTH_LO: {
+				pd->packet->size = *(buf++);
+				pd->state = NEED_PACKET_LENGTH_HI;
+			} break;
+			case NEED_PACKET_LENGTH_HI: {
+				pd->packet->size |= *(buf++) << 8;
+				pd->state = NEED_PACKET_TIMESTAMP_LO;
 
-				for (; pd->buf_actual_length < 5 && buf != end; ++buf)
-					pd->buf[pd->buf_actual_length++] = *buf;
-
-				if (pd->buf_actual_length == 5) {
-					pd->required_length = ((((size_t)(pd->buf[4])) << 8) | pd->buf[3]) + 8 - pd->buf_actual_length;
-					pd->state = NEED_PACKET_DATA;
-				}
+				// FIXME: check available buffer size
+			} break;
+			case NEED_PACKET_TIMESTAMP_LO: {
+				pd->packet->timestamp = *(buf++);
+				pd->state = NEED_PACKET_TIMESTAMP_ME;
+			} break;
+			case NEED_PACKET_TIMESTAMP_ME: {
+				pd->packet->timestamp |= *(buf++) << 8;
+				pd->state = NEED_PACKET_TIMESTAMP_HI;
+			} break;
+			case NEED_PACKET_TIMESTAMP_HI: {
+				pd->packet->timestamp |= *(buf++) << 16;
+				pd->state = NEED_PACKET_DATA;
 			} break;
 			case NEED_PACKET_DATA: {
-				const size_t copy = (pd->required_length < (end - buf) ? pd->required_length : end - buf);
-				const size_t copy2 = (copy + pd->buf_actual_length > pd->buf_length ? pd->buf_length - pd->buf_actual_length : copy);
+				const size_t required_length = pd->packet->size - pd->buf_actual_length;
+				const size_t copy = (required_length < (end - buf) ? required_length : end - buf);
 
-				assert(pd->buf_actual_length >= 5);
-
-				memcpy(pd->buf + pd->buf_actual_length, buf, copy2);
-				pd->buf_actual_length += copy2;
+				memcpy(pd->packet->data + pd->buf_actual_length, buf, copy);
+				pd->buf_actual_length += copy;
 				buf += copy;
-				pd->required_length -= copy;
 
-				if (pd->required_length == 0) {
+				if (required_length == copy) {
 					/* Finalize packet here*/
-					pd->callback(pd->buf, pd->buf_actual_length, pd->user_data);
+					pd->callback(pd->packet, pd->user_data);
 
 					pd->buf_actual_length = 0;
 					pd->state = NEED_PACKET_MAGIC;
@@ -73,8 +85,8 @@ end:
 	return size - (end - buf);
 }
 
-int frame_decoder_init(struct frame_decoder* fd, uint8_t* buf, size_t size, packet_decoder_callback callback, void* data) {
-	if (packet_decoder_init(&fd->pd, buf, size, callback, data) != 0)
+int frame_decoder_init(struct frame_decoder* fd, struct packet* p, size_t size, packet_decoder_callback callback, void* data) {
+	if (packet_decoder_init(&fd->pd, p, size, callback, data) != 0)
 		return -1;
 
 	fd->error_str = NULL;

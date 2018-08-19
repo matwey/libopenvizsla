@@ -12,10 +12,10 @@
 #define PORTB_DONE_BIT     (1 << 2)  // GPIOH2
 #define PORTB_INIT_BIT     (1 << 5)  // GPIOH5
 
-static void packet_handler(uint8_t* buf, size_t size, void* data) {
-	printf("Received %d :", size);
-	for (int i = 0; i < size; ++i)
-		printf(" %02x", buf[i]);
+static void packet_handler(struct packet* packet, void* data) {
+	printf("[%04x] Received %d bytes at %d:", packet->flags, packet->size, packet->timestamp);
+	for (int i = 0; i < packet->size; ++i)
+		printf(" %02x", packet->data[i]);
 	printf("\n");
 }
 

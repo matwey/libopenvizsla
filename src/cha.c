@@ -317,12 +317,12 @@ int cha_stop_stream(struct cha* cha) {
 	return 0;
 }
 
-static void cha_loop_packet_callback(uint8_t* buf, size_t size, void* data) {
+static void cha_loop_packet_callback(struct packet* packet, void* data) {
 	struct cha_loop_packet_callback_state* state = (struct cha_loop_packet_callback_state*)data;
 
 	state->count++;
 
-	state->user_callback(buf, size, state->user_data);
+	state->user_callback(packet, state->user_data);
 }
 
 static void cha_loop_transfer_callback(struct libusb_transfer* transfer) {
@@ -361,7 +361,11 @@ int cha_loop(struct cha* cha, size_t count, packet_decoder_callback callback, vo
 	int ret;
 	struct libusb_transfer* usb_transfer;
 	unsigned char libusb_buf[cha->ftdi.max_packet_size];
-	unsigned char packet_buf[1024];
+
+	union {
+		struct packet packet;
+		uint8_t data[1024];
+	} p;
 
 	struct frame_decoder fd;
 	struct cha_loop_packet_callback_state state;
@@ -369,7 +373,7 @@ int cha_loop(struct cha* cha, size_t count, packet_decoder_callback callback, vo
 	state.user_callback = callback;
 	state.user_data = data;
 
-	if (frame_decoder_init(&fd, packet_buf, sizeof(packet_buf), &cha_loop_packet_callback, &state) == -1) {
+	if (frame_decoder_init(&fd, &p.packet, sizeof(p), &cha_loop_packet_callback, &state) == -1) {
 		goto fail_frame_decode_init;
 	}
 

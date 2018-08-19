@@ -3,15 +3,18 @@
 
 #include <decoder.h>
 
-char buf[1024];
+union {
+	struct packet packet;
+	uint8_t data[1024];
+} p;
 struct packet_decoder pd;
 struct frame_decoder fd;
 
-void callback(uint8_t* buf, size_t size, void* data) {
+void callback(struct packet* packet, void* data) {
 }
 
 void packet_setup() {
-	ck_assert_int_eq(packet_decoder_init(&pd, buf, sizeof(buf), &callback, NULL), 0);
+	ck_assert_int_eq(packet_decoder_init(&pd, &p.packet, sizeof(p), &callback, NULL), 0);
 }
 
 void packet_teardown() {
@@ -19,7 +22,7 @@ void packet_teardown() {
 }
 
 void frame_setup() {
-	ck_assert_int_eq(frame_decoder_init(&fd, buf, sizeof(buf), &callback, NULL), 0);
+	ck_assert_int_eq(frame_decoder_init(&fd, &p.packet, sizeof(p), &callback, NULL), 0);
 }
 
 void frame_teardown() {
@@ -30,7 +33,9 @@ START_TEST (test_packet_decoder1) {
 	char inp[] = {0xa0,0,0,0x01,0,0xc4,0xcc,0x96,0x5a};
 	ck_assert_int_eq(packet_decoder_proc(&pd, inp, sizeof(inp)), sizeof(inp));
 	ck_assert_int_eq(pd.state, NEED_PACKET_MAGIC);
-	ck_assert_int_eq(memcmp(buf, inp, sizeof(inp)), 0);
+	ck_assert_int_eq(p.packet.size, 1);
+	ck_assert_int_eq(p.packet.timestamp, 0x96ccc4);
+	ck_assert_int_eq(memcmp(p.packet.data, inp+8, p.packet.size), 0);
 }
 END_TEST
 
@@ -38,7 +43,9 @@ START_TEST (test_packet_decoder2) {
 	char inp[] = {0xa0,0,0,0x01,0,0xc4,0xcc,0x96,0x5a,0xa0};
 	ck_assert_int_eq(packet_decoder_proc(&pd, inp, sizeof(inp)), sizeof(inp)-1);
 	ck_assert_int_eq(pd.state, NEED_PACKET_MAGIC);
-	ck_assert_int_eq(memcmp(buf, inp, sizeof(inp)-1), 0);
+	ck_assert_int_eq(p.packet.size, 1);
+	ck_assert_int_eq(p.packet.timestamp, 0x96ccc4);
+	ck_assert_int_eq(memcmp(p.packet.data, inp+8, p.packet.size), 0);
 }
 END_TEST
 
@@ -52,7 +59,9 @@ START_TEST (test_packet_decoder4) {
 	char inp[] = {0xa0,0,0,0x03,0,0xac,0x6c,0xa5,0x69,0x83,0xe0};
 	ck_assert_int_eq(packet_decoder_proc(&pd, inp, sizeof(inp)), sizeof(inp));
 	ck_assert_int_eq(pd.state, NEED_PACKET_MAGIC);
-	ck_assert_int_eq(memcmp(buf, inp, sizeof(inp)), 0);
+	ck_assert_int_eq(p.packet.size, 3);
+	ck_assert_int_eq(p.packet.timestamp, 0xa56cac);
+	ck_assert_int_eq(memcmp(p.packet.data, inp+8, p.packet.size), 0);
 }
 END_TEST
 
@@ -60,11 +69,12 @@ START_TEST (test_packet_decoder5) {
 	char inp1[] = {0xa0,0,0,0x03,0,0xac};
 	char inp2[] = {0x6c,0xa5,0x69,0x83,0xe0};
 	ck_assert_int_eq(packet_decoder_proc(&pd, inp1, sizeof(inp1)), sizeof(inp1));
-	ck_assert_int_eq(pd.state, NEED_PACKET_DATA);
+	ck_assert_int_eq(pd.state, NEED_PACKET_TIMESTAMP_ME);
+	ck_assert_int_eq(p.packet.size, 3);
 	ck_assert_int_eq(packet_decoder_proc(&pd, inp2, sizeof(inp2)), sizeof(inp2));
 	ck_assert_int_eq(pd.state, NEED_PACKET_MAGIC);
-	ck_assert_int_eq(memcmp(buf, inp1, sizeof(inp1)), 0);
-	ck_assert_int_eq(memcmp(buf+sizeof(inp1), inp2, sizeof(inp2)), 0);
+	ck_assert_int_eq(p.packet.timestamp, 0xa56cac);
+	ck_assert_int_eq(memcmp(p.packet.data, inp2+2, p.packet.size), 0);
 }
 END_TEST
 
