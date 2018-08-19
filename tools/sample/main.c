@@ -12,6 +12,13 @@
 #define PORTB_DONE_BIT     (1 << 2)  // GPIOH2
 #define PORTB_INIT_BIT     (1 << 5)  // GPIOH5
 
+static void packet_handler(uint8_t* buf, size_t size, void* data) {
+	printf("Received %d :", size);
+	for (int i = 0; i < size; ++i)
+		printf(" %02x", buf[i]);
+	printf("\n");
+}
+
 int main(int argc, char** argv) {
 	unsigned char buf[] = {0x55, 0x04, 0x01, 0x00, 0x5a};
 	unsigned char inp_buf[4096];
@@ -89,7 +96,7 @@ int main(int argc, char** argv) {
 
 	printf("Start looping\n");
 
-	ret = cha_loop(&cha, 10);
+	ret = cha_loop(&cha, 10, &packet_handler, NULL);
 	if (ret == -1) {
 		fprintf(stderr, "cha_loop %s\n", cha_get_error_string(&cha));
 		return 1;

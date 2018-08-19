@@ -9,6 +9,12 @@
 #define OV_VENDOR  0x1d50
 #define OV_PRODUCT 0x607c
 
+struct cha_loop_packet_callback_state {
+	size_t count;
+	packet_decoder_callback user_callback;
+	void* user_data;
+};
+
 static uint8_t cha_transaction_checksum(uint8_t* buf, size_t size) {
 	uint8_t ret = 0;
 
@@ -312,10 +318,11 @@ int cha_stop_stream(struct cha* cha) {
 }
 
 static void cha_loop_packet_callback(uint8_t* buf, size_t size, void* data) {
-	printf("Received %d :", size);
-	for (int i = 0; i < size; ++i)
-		printf(" %02x", buf[i]);
-	printf("\n");
+	struct cha_loop_packet_callback_state* state = (struct cha_loop_packet_callback_state*)data;
+
+	state->count++;
+
+	state->user_callback(buf, size, state->user_data);
 }
 
 static void cha_loop_transfer_callback(struct libusb_transfer* transfer) {
@@ -329,7 +336,7 @@ static void cha_loop_transfer_callback(struct libusb_transfer* transfer) {
 	}
 }
 
-int cha_loop(struct cha* cha, int cnt) {
+int cha_loop(struct cha* cha, size_t count, packet_decoder_callback callback, void* data) {
 	/* Layout:
 		FTDI pkg transfer->actual_length (less than ftdi.max_packet_size) starting with 32 60
 		SDRAM frame starting with D0 XX. size = (XX + 1) * 2 // max_size = 512
@@ -341,8 +348,12 @@ int cha_loop(struct cha* cha, int cnt) {
 	unsigned char packet_buf[1024];
 
 	struct frame_decoder fd;
+	struct cha_loop_packet_callback_state state;
+	state.count = 0;
+	state.user_callback = callback;
+	state.user_data = data;
 
-	if (frame_decoder_init(&fd, packet_buf, sizeof(packet_buf), &cha_loop_packet_callback, NULL) == -1)
+	if (frame_decoder_init(&fd, packet_buf, sizeof(packet_buf), &cha_loop_packet_callback, &state) == -1)
 		return -1;
 
 	usb_transfer = libusb_alloc_transfer(0);
@@ -358,7 +369,7 @@ int cha_loop(struct cha* cha, int cnt) {
 		goto fail_libusb_submit_transfer;
 	}
 
-	while (cnt) {
+	while (state.count < count) {
 		if ((ret = libusb_handle_events(cha->ftdi.usb_ctx)) < 0) {
 			cha->error_str = libusb_error_name(ret);
 			goto fail_libusb_handle_events;
