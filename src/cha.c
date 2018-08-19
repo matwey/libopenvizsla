@@ -326,13 +326,29 @@ static void cha_loop_packet_callback(uint8_t* buf, size_t size, void* data) {
 }
 
 static void cha_loop_transfer_callback(struct libusb_transfer* transfer) {
-	struct frame_decoder* fd = (struct frame_decoder*)transfer->user_data;
+	switch (transfer->status) {
+		case LIBUSB_TRANSFER_COMPLETED: {
+			struct frame_decoder* fd = (struct frame_decoder*)transfer->user_data;
 
-	libusb_submit_transfer(transfer);
+			libusb_submit_transfer(transfer);
 
-	if (transfer->actual_length > 2) {
-		/* Skip FTDI header */
-		frame_decoder_proc(fd, transfer->buffer + 2, transfer->actual_length - 2);
+			if (transfer->actual_length > 2) {
+				/* Skip FTDI header */
+				frame_decoder_proc(fd, transfer->buffer + 2, transfer->actual_length - 2);
+			}
+		} break;
+		case LIBUSB_TRANSFER_CANCELLED: {
+			/* Freeing the transfer before cancellation has completed will result in undefined behaviour. */
+			libusb_free_transfer(transfer);
+		} break;
+		// FIXME: handle the following cases
+		case LIBUSB_TRANSFER_ERROR:
+		case LIBUSB_TRANSFER_TIMED_OUT:
+		case LIBUSB_TRANSFER_STALL:
+		case LIBUSB_TRANSFER_NO_DEVICE:
+		case LIBUSB_TRANSFER_OVERFLOW:
+		default:
+			assert(0);
 	}
 }
 
@@ -353,8 +369,9 @@ int cha_loop(struct cha* cha, size_t count, packet_decoder_callback callback, vo
 	state.user_callback = callback;
 	state.user_data = data;
 
-	if (frame_decoder_init(&fd, packet_buf, sizeof(packet_buf), &cha_loop_packet_callback, &state) == -1)
-		return -1;
+	if (frame_decoder_init(&fd, packet_buf, sizeof(packet_buf), &cha_loop_packet_callback, &state) == -1) {
+		goto fail_frame_decode_init;
+	}
 
 	usb_transfer = libusb_alloc_transfer(0);
 	if (!usb_transfer) {
@@ -372,21 +389,27 @@ int cha_loop(struct cha* cha, size_t count, packet_decoder_callback callback, vo
 	while (state.count < count) {
 		if ((ret = libusb_handle_events(cha->ftdi.usb_ctx)) < 0) {
 			cha->error_str = libusb_error_name(ret);
-			goto fail_libusb_handle_events;
+			break;
 		}
 		if (fd.error_str) {
 			cha->error_str = fd.error_str;
-			goto fail_libusb_handle_events;
+			break;
 		}
 	}
 
-	libusb_free_transfer(usb_transfer);
-	return 0;
+	if ((ret = libusb_cancel_transfer(usb_transfer)) < 0) {
+		cha->error_str = libusb_error_name(ret);
+		if (ret == LIBUSB_ERROR_NOT_FOUND) {
+			libusb_free_transfer(usb_transfer);
+		}
+	}
 
-fail_libusb_handle_events:
+	return (cha->error_str ? -1 : 0);
+
 fail_libusb_submit_transfer:
 	libusb_free_transfer(usb_transfer);
 fail_libusb_alloc_transfer:
+fail_frame_decode_init:
 	return -1;
 }
 
