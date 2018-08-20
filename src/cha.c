@@ -377,6 +377,15 @@ int cha_loop(struct cha* cha, size_t count, packet_decoder_callback callback, vo
 		goto fail_frame_decode_init;
 	}
 
+	if ((ret = frame_decoder_proc(&fd, cha->ftdi.readbuffer + cha->ftdi.readbuffer_offset, cha->ftdi.readbuffer_remaining)) < 0) {
+		goto fail_decode_ftdi_readbuffer;
+	} else {
+		assert(ret == cha->ftdi.readbuffer_remaining);
+
+		cha->ftdi.readbuffer_remaining -= ret;
+		cha->ftdi.readbuffer_offset = 0;
+	}
+
 	usb_transfer = libusb_alloc_transfer(0);
 	if (!usb_transfer) {
 		cha->error_str = "Can not allocate libusb_transfer";
@@ -413,6 +422,7 @@ int cha_loop(struct cha* cha, size_t count, packet_decoder_callback callback, vo
 fail_libusb_submit_transfer:
 	libusb_free_transfer(usb_transfer);
 fail_libusb_alloc_transfer:
+fail_decode_ftdi_readbuffer:
 fail_frame_decode_init:
 	return -1;
 }
