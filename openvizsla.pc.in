@@ -1,0 +1,9 @@
+prefix=@CMAKE_INSTALL_PREFIX@
+libdir=@CMAKE_INSTALL_FULL_LIBDIR@
+includedir=@CMAKE_INSTALL_FULL_INCLUDEDIR@/openvizsla
+
+Name: @CMAKE_PROJECT_NAME@
+Description: Host software for OpenVizsla USB monitor
+Version: @PROJECT_VERSION@
+Libs: -L${libdir} -lopenvizsla
+Cflags: -I${includedir}

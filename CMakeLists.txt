@@ -1,5 +1,7 @@
-cmake_minimum_required (VERSION 2.8)
-project(libopenvizsla C)
+cmake_minimum_required (VERSION 3.0)
+project(libopenvizsla LANGUAGES C VERSION 0.0.0)
+
+include(GNUInstallDirs)
 
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 include(CheckSymbolExists)
@@ -26,6 +28,7 @@ add_custom_command(OUTPUT ov3.fwpkg.o
 file(GLOB_RECURSE SOURCES src/*.c)
 add_library(openvizsla SHARED ${SOURCES} ov3.fwpkg.o)
 target_link_libraries(openvizsla ${LIBFTDI_LIBRARIES} ${LIBZIP_LIBRARIES})
+set_target_properties(openvizsla PROPERTIES VERSION 0.0.0 SOVERSION 0)
 
 file(GLOB TOOLS tools/*)
 foreach(tool_target IN ITEMS ${TOOLS})
@@ -49,3 +52,11 @@ foreach(test_source IN ITEMS ${TESTS})
 	set_target_properties(${test_name} PROPERTIES COMPILE_FLAGS -DPROJECT_ROOT='"${PROJECT_SOURCE_DIR}"')
 	add_test(${test_name} ${test_name})
 endforeach(test_source)
+
+install(TARGETS openvizsla LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
+install(DIRECTORY include/
+	DESTINATION ${CMAKE_INSTALL_FULL_INCLUDEDIR}/openvizsla
+	FILES_MATCHING PATTERN "*.h")
+configure_file("openvizsla.pc.in" "openvizsla.pc" @ONLY)
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/openvizsla.pc"
+	DESTINATION "${CMAKE_INSTALL_FULL_LIBDIR}/pkgconfig")
