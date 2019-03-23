@@ -114,10 +114,10 @@ int frame_decoder_proc(struct frame_decoder* fd, uint8_t* buf, size_t size) {
 				fd->state = NEED_FRAME_DATA;
 			} break;
 			case NEED_FRAME_DATA: {
-				const size_t size = (fd->required_length < end - buf ? fd->required_length : end - buf);
+				const size_t psize = (fd->required_length < end - buf ? fd->required_length : end - buf);
 				int ret = 0;
 
-				ret = packet_decoder_proc(&fd->pd, buf, size);
+				ret = packet_decoder_proc(&fd->pd, buf, psize);
 				if (ret == -1) {
 					fd->error_str = fd->pd.error_str;
 					return -1;
