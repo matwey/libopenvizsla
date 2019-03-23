@@ -3,6 +3,8 @@
 #include <string.h>
 #include <ftdi.h>
 
+#include <signal.h>
+
 #include <cha.h>
 #include <chb.h>
 
@@ -19,10 +21,17 @@ static void packet_handler(struct packet* packet, void* data) {
 	printf("\n");
 }
 
+static void sighandler(int signum) {
+	printf("Caught signal %d\n", signum);
+}
+
 int main(int argc, char** argv) {
 	unsigned char buf[] = {0x55, 0x04, 0x01, 0x00, 0x5a};
 	unsigned char inp_buf[4096];
 	int ret;
+
+	signal(SIGINT, sighandler);
+	signal(SIGTERM, sighandler);
 
 	struct cha cha;
 	struct chb chb;
@@ -94,13 +103,27 @@ int main(int argc, char** argv) {
 		return 1;
 	}
 
-	printf("Start looping\n");
+	union {
+		struct packet packet;
+		char buf[1024];
+	} p;
+	struct cha_loop cha_loop;
 
-	ret = cha_loop(&cha, 10, &packet_handler, NULL);
+	ret = cha_loop_init(&cha_loop, &cha, &p.packet, sizeof(p), &packet_handler, NULL);
 	if (ret == -1) {
-		fprintf(stderr, "cha_loop %s\n", cha_get_error_string(&cha));
+		fprintf(stderr, "cha_loop_init %s\n", cha_get_error_string(&cha));
 		return 1;
 	}
+
+	printf("Start looping\n");
+
+	ret = cha_loop_run(&cha_loop, 100);
+	if (ret == -1) {
+		fprintf(stderr, "cha_loop_run %s\n", cha_get_error_string(&cha));
+		return 1;
+	}
+
+	printf("Stop looping\n");
 
 	ret = cha_stop_stream(&cha);
 	if (ret == -1) {

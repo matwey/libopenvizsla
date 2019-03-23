@@ -86,7 +86,7 @@ end:
 }
 
 int frame_decoder_init(struct frame_decoder* fd, struct packet* p, size_t size, packet_decoder_callback callback, void* data) {
-	if (packet_decoder_init(&fd->pd, p, size, callback, data) != 0)
+	if (packet_decoder_init(&fd->pd, p, size, callback, data) < 0)
 		return -1;
 
 	fd->error_str = NULL;

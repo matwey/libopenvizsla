@@ -318,72 +318,144 @@ int cha_stop_stream(struct cha* cha) {
 }
 
 static void cha_loop_packet_callback(struct packet* packet, void* data) {
-	struct cha_loop_packet_callback_state* state = (struct cha_loop_packet_callback_state*)data;
+	struct cha_loop* loop = (struct cha_loop*)data;
 
-	state->count++;
+	if (loop->max_count > 0)
+		loop->count++;
 
-	state->user_callback(packet, state->user_data);
+	loop->callback(packet, loop->user_data);
+}
+
+static void cha_loop_free_transfer(struct libusb_transfer* transfer) {
+	struct cha_loop* loop = (struct cha_loop*)transfer->user_data;
+
+	libusb_free_transfer(transfer);
+	loop->complete = 1;
+}
+
+static void cha_loop_cancel_transfer(struct libusb_transfer* transfer) {
+	struct cha_loop* loop = (struct cha_loop*)transfer->user_data;
+	struct cha* cha = loop->cha;
+
+	int ret = 0;
+
+	if ((ret = libusb_cancel_transfer(transfer)) < 0) {
+		cha_loop_free_transfer(transfer);
+
+		if (ret != LIBUSB_ERROR_NOT_FOUND) {
+			cha->error_str = libusb_error_name(ret);
+		}
+	}
 }
 
 static void cha_loop_transfer_callback(struct libusb_transfer* transfer) {
+	struct cha_loop* loop = (struct cha_loop*)transfer->user_data;
+	struct cha* cha = loop->cha;
+
+	int ret = 0;
+
 	switch (transfer->status) {
 		case LIBUSB_TRANSFER_COMPLETED: {
-			struct frame_decoder* fd = (struct frame_decoder*)transfer->user_data;
+			const int done = (loop->max_count > 0 && loop->count >= loop->max_count);
 
-			libusb_submit_transfer(transfer);
+			if (!(done || loop->break_loop) && (ret = libusb_submit_transfer(transfer)) < 0) {
+				cha_loop_cancel_transfer(transfer);
+
+				if (ret != LIBUSB_ERROR_INTERRUPTED) {
+					cha->error_str = libusb_error_name(ret);
+				}
+
+				loop->break_loop = 1;
+			}
 
 			if (transfer->actual_length > 2) {
 				/* Skip FTDI header */
-				frame_decoder_proc(fd, transfer->buffer + 2, transfer->actual_length - 2);
+				if (frame_decoder_proc(
+					&loop->fd,
+					transfer->buffer + 2,
+					transfer->actual_length - 2) < 0) {
+
+					loop->break_loop = 1;
+					cha->error_str = loop->fd.error_str;
+				};
+			}
+
+			if (done || loop->break_loop) {
+				cha_loop_cancel_transfer(transfer);
 			}
 		} break;
 		case LIBUSB_TRANSFER_CANCELLED: {
-			/* Freeing the transfer before cancellation has completed will result in undefined behaviour. */
-			libusb_free_transfer(transfer);
+			/* Freeing the transfer before cancellation has
+			 * completed will result in undefined behaviour. */
+			cha_loop_free_transfer(transfer);
 		} break;
-		// FIXME: handle the following cases
 		case LIBUSB_TRANSFER_ERROR:
 		case LIBUSB_TRANSFER_TIMED_OUT:
 		case LIBUSB_TRANSFER_STALL:
 		case LIBUSB_TRANSFER_NO_DEVICE:
 		case LIBUSB_TRANSFER_OVERFLOW:
-		default:
-			assert(0);
+		default: {
+			cha_loop_cancel_transfer(transfer);
+
+			cha->error_str = libusb_error_name(transfer->status);
+		} break;
 	}
 }
 
-int cha_loop(struct cha* cha, size_t count, packet_decoder_callback callback, void* data) {
-	/* Layout:
-		FTDI pkg transfer->actual_length (less than ftdi.max_packet_size) starting with 32 60
-		SDRAM frame starting with D0 XX. size = (XX + 1) * 2 // max_size = 512
-		SNIFF frame starting with A0 XX YY ZZ size = (ZZ << 8 | YY) + 8
-	*/
-	int ret;
-	struct libusb_transfer* usb_transfer;
-	unsigned char libusb_buf[cha->ftdi.max_packet_size];
+static int cha_loop_read_from_ftdi(struct cha_loop* loop) {
+	struct ftdi_context* ftdi = &loop->cha->ftdi;
+	int ret = 0;
 
-	union {
-		struct packet packet;
-		uint8_t data[1024];
-	} p;
+	if ((ret = frame_decoder_proc(
+		&loop->fd,
+		ftdi->readbuffer + ftdi->readbuffer_offset,
+		ftdi->readbuffer_remaining)) < 0) {
 
-	struct frame_decoder fd;
-	struct cha_loop_packet_callback_state state;
-	state.count = 0;
-	state.user_callback = callback;
-	state.user_data = data;
+		loop->cha->error_str = loop->fd.error_str;
+		goto fail_decode_ftdi_readbuffer;
+	}
 
-	if (frame_decoder_init(&fd, &p.packet, sizeof(p), &cha_loop_packet_callback, &state) == -1) {
+	assert(ret == ftdi->readbuffer_remaining);
+
+	ftdi->readbuffer_remaining -= ret;
+	ftdi->readbuffer_offset = 0;
+
+	return 0;
+
+fail_decode_ftdi_readbuffer:
+	return -1;
+}
+
+int cha_loop_init(struct cha_loop* loop, struct cha* cha, struct packet* packet, size_t packet_size, packet_decoder_callback callback, void* user_data) {
+	loop->cha = cha;
+	loop->callback = callback;
+	loop->user_data = user_data;
+
+	if (frame_decoder_init(&loop->fd, packet, packet_size, &cha_loop_packet_callback, loop) < 0) {
+		cha->error_str = "Frame decoder init failure";
 		goto fail_frame_decode_init;
 	}
 
-	if ((ret = frame_decoder_proc(&fd, cha->ftdi.readbuffer + cha->ftdi.readbuffer_offset, cha->ftdi.readbuffer_remaining)) < 0) {
-		goto fail_decode_ftdi_readbuffer;
-	} else {
-		assert(ret == cha->ftdi.readbuffer_remaining);
+	return 0;
 
-		cha->ftdi.readbuffer_remaining -= ret;
-		cha->ftdi.readbuffer_offset = 0;
+fail_frame_decode_init:
+	return -1;
+}
+
+int cha_loop_run(struct cha_loop* loop, int count) {
+	struct cha* cha = loop->cha;
+	struct ftdi_context* ftdi = &cha->ftdi;
+
+	struct libusb_transfer* usb_transfer;
+	int ret = 0;
+
+	loop->count = 0;
+	loop->max_count = count;
+	loop->break_loop = 0;
+	loop->complete = 0;
+
+	if (cha_loop_read_from_ftdi(loop) < 0) {
+		goto fail_read_from_ftdi;
 	}
 
 	usb_transfer = libusb_alloc_transfer(0);
@@ -392,38 +464,35 @@ int cha_loop(struct cha* cha, size_t count, packet_decoder_callback callback, vo
 		goto fail_libusb_alloc_transfer;
 	}
 
-	libusb_fill_bulk_transfer(usb_transfer, cha->ftdi.usb_dev, cha->ftdi.out_ep, libusb_buf, cha->ftdi.max_packet_size, &cha_loop_transfer_callback, &fd, 100);
+	libusb_fill_bulk_transfer(usb_transfer, ftdi->usb_dev, ftdi->out_ep, ftdi->readbuffer, ftdi->max_packet_size, &cha_loop_transfer_callback, loop, 100);
 
 	if ((ret = libusb_submit_transfer(usb_transfer)) < 0) {
 		cha->error_str = libusb_error_name(ret);
 		goto fail_libusb_submit_transfer;
 	}
 
-	while (state.count < count) {
-		if ((ret = libusb_handle_events(cha->ftdi.usb_ctx)) < 0) {
-			cha->error_str = libusb_error_name(ret);
-			break;
+	do {
+		if ((ret = libusb_handle_events_completed(ftdi->usb_ctx, &loop->complete)) < 0) {
+			loop->break_loop = 1;
+
+			if (ret != LIBUSB_ERROR_INTERRUPTED) {
+				cha->error_str = libusb_error_name(ret);
+			}
 		}
-		if (fd.error_str) {
-			cha->error_str = fd.error_str;
-			break;
-		}
+	} while (!loop->complete);
+
+	if (loop->break_loop) {
+		if (cha->error_str)
+			return -1;
+		return -2;
 	}
 
-	if ((ret = libusb_cancel_transfer(usb_transfer)) < 0) {
-		cha->error_str = libusb_error_name(ret);
-		if (ret == LIBUSB_ERROR_NOT_FOUND) {
-			libusb_free_transfer(usb_transfer);
-		}
-	}
-
-	return (cha->error_str ? -1 : 0);
+	return loop->count;
 
 fail_libusb_submit_transfer:
 	libusb_free_transfer(usb_transfer);
 fail_libusb_alloc_transfer:
-fail_decode_ftdi_readbuffer:
-fail_frame_decode_init:
+fail_read_from_ftdi:
 	return -1;
 }
 

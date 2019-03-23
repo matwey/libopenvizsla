@@ -12,6 +12,19 @@ struct cha {
 	const char* error_str;
 };
 
+struct cha_loop {
+	struct cha* cha;
+
+	packet_decoder_callback callback;
+	void* user_data;
+
+	int count;
+	int max_count;
+	int break_loop;
+	int complete;
+	struct frame_decoder fd;
+};
+
 int cha_init(struct cha* cha);
 int cha_open(struct cha* cha);
 int cha_switch_config_mode(struct cha* cha);
@@ -22,7 +35,8 @@ int cha_write_reg32(struct cha* cha, uint16_t addr, uint32_t val);
 int cha_read_reg32(struct cha* cha, uint16_t addr, uint32_t* val);
 int cha_start_stream(struct cha* cha);
 int cha_stop_stream(struct cha* cha);
-int cha_loop(struct cha* cha, size_t count, packet_decoder_callback callback, void* data);
+int cha_loop_init(struct cha_loop* loop, struct cha* cha, struct packet* packet, size_t packet_size, packet_decoder_callback callback, void* user_data);
+int cha_loop_run(struct cha_loop* loop, int count);
 void cha_destroy(struct cha* cha);
 
 const char* cha_get_error_string(struct cha* cha);
