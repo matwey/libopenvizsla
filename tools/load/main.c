@@ -43,7 +43,7 @@ int main(int argc, char** argv) {
 	size = fwpkg_bitstream_size(fwpkg);
 	firmware = malloc(size);
 	if (firmware == NULL) {
-		fprintf(stderr, "Cannot allocate memory for firmware %d", size);
+		fprintf(stderr, "Cannot allocate memory for firmware %zu", size);
 		return 1;
 	}
 
