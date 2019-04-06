@@ -333,21 +333,6 @@ static void cha_loop_free_transfer(struct libusb_transfer* transfer) {
 	loop->complete = 1;
 }
 
-static void cha_loop_cancel_transfer(struct libusb_transfer* transfer) {
-	struct cha_loop* loop = (struct cha_loop*)transfer->user_data;
-	struct cha* cha = loop->cha;
-
-	int ret = 0;
-
-	if ((ret = libusb_cancel_transfer(transfer)) < 0) {
-		cha_loop_free_transfer(transfer);
-
-		if (ret != LIBUSB_ERROR_NOT_FOUND) {
-			cha->error_str = libusb_error_name(ret);
-		}
-	}
-}
-
 static void cha_loop_transfer_callback(struct libusb_transfer* transfer) {
 	struct cha_loop* loop = (struct cha_loop*)transfer->user_data;
 	struct cha* cha = loop->cha;
@@ -359,8 +344,6 @@ static void cha_loop_transfer_callback(struct libusb_transfer* transfer) {
 			const int done = (loop->max_count > 0 && loop->count >= loop->max_count);
 
 			if (!(done || loop->break_loop) && (ret = libusb_submit_transfer(transfer)) < 0) {
-				cha_loop_cancel_transfer(transfer);
-
 				if (ret != LIBUSB_ERROR_INTERRUPTED) {
 					cha->error_str = libusb_error_name(ret);
 				}
@@ -381,12 +364,10 @@ static void cha_loop_transfer_callback(struct libusb_transfer* transfer) {
 			}
 
 			if (done || loop->break_loop) {
-				cha_loop_cancel_transfer(transfer);
+				cha_loop_free_transfer(transfer);
 			}
 		} break;
 		case LIBUSB_TRANSFER_CANCELLED: {
-			/* Freeing the transfer before cancellation has
-			 * completed will result in undefined behaviour. */
 			cha_loop_free_transfer(transfer);
 		} break;
 		case LIBUSB_TRANSFER_ERROR:
@@ -395,9 +376,10 @@ static void cha_loop_transfer_callback(struct libusb_transfer* transfer) {
 		case LIBUSB_TRANSFER_NO_DEVICE:
 		case LIBUSB_TRANSFER_OVERFLOW:
 		default: {
-			cha_loop_cancel_transfer(transfer);
-
 			cha->error_str = libusb_error_name(transfer->status);
+			loop->break_loop = 1;
+
+			cha_loop_free_transfer(transfer);
 		} break;
 	}
 }
