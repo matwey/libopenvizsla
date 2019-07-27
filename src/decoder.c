@@ -2,7 +2,7 @@
 
 #include <assert.h>
 
-int packet_decoder_init(struct packet_decoder* pd, struct packet* p, size_t size, packet_decoder_callback callback, void* data) {
+int packet_decoder_init(struct packet_decoder* pd, struct ov_packet* p, size_t size, ov_packet_decoder_callback callback, void* data) {
 	pd->packet = p;
 	pd->buf_actual_length = 0;
 	pd->buf_length = size;
@@ -85,7 +85,7 @@ end:
 	return size - (end - buf);
 }
 
-int frame_decoder_init(struct frame_decoder* fd, struct packet* p, size_t size, packet_decoder_callback callback, void* data) {
+int frame_decoder_init(struct frame_decoder* fd, struct ov_packet* p, size_t size, ov_packet_decoder_callback callback, void* data) {
 	if (packet_decoder_init(&fd->pd, p, size, callback, data) < 0)
 		return -1;
 

@@ -11,7 +11,7 @@
 
 struct cha_loop_packet_callback_state {
 	size_t count;
-	packet_decoder_callback user_callback;
+	ov_packet_decoder_callback user_callback;
 	void* user_data;
 };
 
@@ -317,7 +317,7 @@ int cha_stop_stream(struct cha* cha) {
 	return 0;
 }
 
-static void cha_loop_packet_callback(struct packet* packet, void* data) {
+static void cha_loop_packet_callback(struct ov_packet* packet, void* data) {
 	struct cha_loop* loop = (struct cha_loop*)data;
 
 	if (loop->max_count > 0)
@@ -408,7 +408,7 @@ fail_decode_ftdi_readbuffer:
 	return -1;
 }
 
-int cha_loop_init(struct cha_loop* loop, struct cha* cha, struct packet* packet, size_t packet_size, packet_decoder_callback callback, void* user_data) {
+int cha_loop_init(struct cha_loop* loop, struct cha* cha, struct ov_packet* packet, size_t packet_size, ov_packet_decoder_callback callback, void* user_data) {
 	loop->cha = cha;
 	loop->callback = callback;
 	loop->user_data = user_data;

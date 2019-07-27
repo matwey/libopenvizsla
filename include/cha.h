@@ -15,7 +15,7 @@ struct cha {
 struct cha_loop {
 	struct cha* cha;
 
-	packet_decoder_callback callback;
+	ov_packet_decoder_callback callback;
 	void* user_data;
 
 	int count;
@@ -35,7 +35,7 @@ int cha_write_reg32(struct cha* cha, uint16_t addr, uint32_t val);
 int cha_read_reg32(struct cha* cha, uint16_t addr, uint32_t* val);
 int cha_start_stream(struct cha* cha);
 int cha_stop_stream(struct cha* cha);
-int cha_loop_init(struct cha_loop* loop, struct cha* cha, struct packet* packet, size_t packet_size, packet_decoder_callback callback, void* user_data);
+int cha_loop_init(struct cha_loop* loop, struct cha* cha, struct ov_packet* packet, size_t packet_size, ov_packet_decoder_callback callback, void* user_data);
 int cha_loop_run(struct cha_loop* loop, int count);
 void cha_destroy(struct cha* cha);
 

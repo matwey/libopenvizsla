@@ -4,13 +4,13 @@
 #include <decoder.h>
 
 union {
-	struct packet packet;
+	struct ov_packet packet;
 	uint8_t data[1024];
 } p;
 struct packet_decoder pd;
 struct frame_decoder fd;
 
-void callback(struct packet* packet, void* data) {
+void callback(struct ov_packet* packet, void* data) {
 }
 
 void packet_setup() {

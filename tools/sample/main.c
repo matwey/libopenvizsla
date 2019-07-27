@@ -14,7 +14,7 @@
 #define PORTB_DONE_BIT     (1 << 2)  // GPIOH2
 #define PORTB_INIT_BIT     (1 << 5)  // GPIOH5
 
-static void packet_handler(struct packet* packet, void* data) {
+static void packet_handler(struct ov_packet* packet, void* data) {
 	printf("[%04x] Received %d bytes at %d:", packet->flags, packet->size, packet->timestamp);
 	for (int i = 0; i < packet->size; ++i)
 		printf(" %02x", packet->data[i]);
@@ -104,7 +104,7 @@ int main(int argc, char** argv) {
 	}
 
 	union {
-		struct packet packet;
+		struct ov_packet packet;
 		char buf[1024];
 	} p;
 	struct cha_loop cha_loop;
