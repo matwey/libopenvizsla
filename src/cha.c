@@ -9,6 +9,9 @@
 #define OV_VENDOR  0x1d50
 #define OV_PRODUCT 0x607c
 
+#define UCFG_REG_ADDRMASK 0x3f
+#define UCFG_REG_GO 0x80
+
 struct cha_loop_packet_callback_state {
 	size_t count;
 	ov_packet_decoder_callback user_callback;
@@ -243,6 +246,104 @@ int cha_read_reg32(struct cha* cha, uint16_t addr, uint32_t* val) {
 
 		*val = (*val << 8) | tmp;
 	}
+
+	return 0;
+}
+
+int cha_write_ulpi(struct cha* cha, uint8_t addr, uint8_t val) {
+	int ret = 0;
+	uint8_t tmp = 0;
+
+	//self.regs.ucfg_wdata.wr(value) UCFG_WDATA
+	ret = cha_write_reg(cha, 0x402, val);
+	if (ret == -1)
+		return ret;
+
+	//self.regs.ucfg_wcmd.wr(UCFG_REG_GO | (addr & UCFG_REG_ADDRMASK))
+	ret = cha_write_reg(cha, 0x403, UCFG_REG_GO | (addr & UCFG_REG_ADDRMASK));
+	if (ret == -1)
+		return ret;
+
+	do {
+		ret = cha_read_reg(cha, 0x403, &tmp);
+		if (ret == -1)
+			return ret;
+	} while(tmp & UCFG_REG_GO);
+
+	return 0;
+}
+
+int cha_read_ulpi(struct cha* cha, uint8_t addr, uint8_t* val) {
+	int ret = 0;
+	uint8_t tmp = 0;
+
+	//self.regs.ucfg_rcmd.wr(UCFG_REG_GO | (addr & UCFG_REG_ADDRMASK))
+	ret = cha_write_reg(cha, 0x405, UCFG_REG_GO | (addr & UCFG_REG_ADDRMASK));
+	if (ret == -1)
+		return ret;
+
+	do {
+		ret = cha_read_reg(cha, 0x405, &tmp);
+		if (ret == -1)
+			return ret;
+	} while(tmp & UCFG_REG_GO);
+
+	//self.regs.ucfg_rdata.wr(value)
+	ret = cha_read_reg(cha, 0x404, val);
+	if (ret == -1)
+		return ret;
+
+	return 0;
+}
+
+int cha_get_usb_speed(struct cha* cha, enum ov_usb_speed* speed) {
+	int ret = 0;
+	uint8_t wdata = 0;
+
+	ret = cha_read_ulpi(cha, 0x04, &wdata);
+	if (ret == -1)
+		return ret;
+
+	switch (wdata) {
+	case 0x4a: {
+		*speed = OV_LOW_SPEED;
+	} break;
+	case 0x49: {
+		*speed = OV_FULL_SPEED;
+	} break;
+	case 0x48: {
+		*speed = OV_HIGH_SPEED;
+	} break;
+	default: {
+		cha->error_str = "Invalid USB speed code";
+
+		return -1;
+	} break;
+	}
+
+	return 0;
+}
+
+int cha_set_usb_speed(struct cha* cha, enum ov_usb_speed speed) {
+	int ret = 0;
+	uint8_t wdata = 0;
+
+	switch (speed) {
+	case OV_LOW_SPEED: {
+		wdata = 0x4a;
+	} break;
+	case OV_FULL_SPEED: {
+		wdata = 0x49;
+	} break;
+	case OV_HIGH_SPEED: {
+		wdata = 0x48;
+	} break;
+	}
+
+	// self.regs.ucfg_wdata.wr(value)
+	ret = cha_write_ulpi(cha, 0x04, wdata);
+	if (ret == -1)
+		return ret;
 
 	return 0;
 }

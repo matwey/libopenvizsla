@@ -63,6 +63,30 @@ void ov_destroy(struct ov_device* ov) {
 	cha_destroy(&ov->cha);
 }
 
+int ov_get_usb_speed(struct ov_device* ov, enum ov_usb_speed* speed) {
+	if (cha_get_usb_speed(&ov->cha, speed) < 0) {
+		ov->error_str = cha_get_error_string(&ov->cha);
+		goto fail_cha_get_usb_speed;
+	}
+
+	return 0;
+
+fail_cha_get_usb_speed:
+	return -1;
+}
+
+int ov_set_usb_speed(struct ov_device* ov, enum ov_usb_speed speed) {
+	if (cha_set_usb_speed(&ov->cha, speed) < 0) {
+		ov->error_str = cha_get_error_string(&ov->cha);
+		goto fail_cha_set_usb_speed;
+	}
+
+	return 0;
+
+fail_cha_set_usb_speed:
+	return -1;
+}
+
 int ov_capture_start(struct ov_device* ov, struct ov_packet* packet, size_t packet_size, ov_packet_decoder_callback callback, void* user_data) {
 
 	if (cha_switch_fifo_mode(&ov->cha) < 0) {

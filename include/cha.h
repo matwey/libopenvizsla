@@ -1,6 +1,7 @@
 #ifndef _CHA_H
 #define _CHA_H
 
+#include <ov.h>
 #include <ftdi.h>
 #include <decoder.h>
 
@@ -33,6 +34,10 @@ int cha_write_reg(struct cha* cha, uint16_t addr, uint8_t val);
 int cha_read_reg(struct cha* cha, uint16_t addr, uint8_t* val);
 int cha_write_reg32(struct cha* cha, uint16_t addr, uint32_t val);
 int cha_read_reg32(struct cha* cha, uint16_t addr, uint32_t* val);
+int cha_write_ulpi(struct cha* cha, uint8_t addr, uint8_t val);
+int cha_read_ulpi(struct cha* cha, uint8_t addr, uint8_t* val);
+int cha_get_usb_speed(struct cha* cha, enum ov_usb_speed* speed);
+int cha_set_usb_speed(struct cha* cha, enum ov_usb_speed speed);
 int cha_start_stream(struct cha* cha);
 int cha_stop_stream(struct cha* cha);
 int cha_loop_init(struct cha_loop* loop, struct cha* cha, struct ov_packet* packet, size_t packet_size, ov_packet_decoder_callback callback, void* user_data);

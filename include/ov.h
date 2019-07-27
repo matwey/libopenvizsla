@@ -15,9 +15,18 @@ struct ov_packet {
 
 typedef void (*ov_packet_decoder_callback)(struct ov_packet*, void*);
 
+enum ov_usb_speed {
+	OV_LOW_SPEED  = 0x4a,
+	OV_FULL_SPEED = 0x49,
+	OV_HIGH_SPEED = 0x48
+};
+
 int  ov_init(struct ov_device* ov);
 int  ov_open(struct ov_device* ov);
 void ov_destroy(struct ov_device* ov);
+
+int ov_get_usb_speed(struct ov_device* ov, enum ov_usb_speed* speed);
+int ov_set_usb_speed(struct ov_device* ov, enum ov_usb_speed speed);
 
 int ov_capture_start(struct ov_device* ov, struct ov_packet* packet, size_t packet_size, ov_packet_decoder_callback callback, void* user_data);
 int ov_capture_dispatch(struct ov_device* ov, int count);

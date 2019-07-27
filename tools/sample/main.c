@@ -29,6 +29,7 @@ int main(int argc, char** argv) {
 	unsigned char buf[] = {0x55, 0x04, 0x01, 0x00, 0x5a};
 	unsigned char inp_buf[4096];
 	int ret;
+	enum ov_usb_speed speed = OV_LOW_SPEED;
 
 	signal(SIGINT, sighandler);
 	signal(SIGTERM, sighandler);
@@ -83,19 +84,18 @@ int main(int argc, char** argv) {
 		return 1;
 	}
 
-	// dev.ulpiregs.func_ctl.wr(0x4a)
-	// self.regs.ucfg_wdata.wr(value)
-	ret = cha_write_reg(&cha, 0x402, 0x4a);
+	ret = cha_set_usb_speed(&cha, speed);
 	if (ret == -1) {
-		fprintf(stderr, "self.regs.ucfg_wdata.wr %s\n", cha_get_error_string(&cha));
+		fprintf(stderr, "cha_set_usb_speed %s\n", cha_get_error_string(&cha));
 		return 1;
 	}
-	// self.regs.ucfg_wcmd.wr(UCFG_REG_GO | (addr & UCFG_REG_ADDRMASK))
-	ret = cha_write_reg(&cha, 0x403, 0x80 | (0x04 & 0x3F));
+
+	ret = cha_get_usb_speed(&cha, &speed);
 	if (ret == -1) {
-		fprintf(stderr, "self.regs.ucfg_wcmd.wr %s\n", cha_get_error_string(&cha));
+		fprintf(stderr, "cha_get_usb_speed %s\n", cha_get_error_string(&cha));
 		return 1;
 	}
+	printf("USB speed: %x\n", speed);
 
 	ret = cha_start_stream(&cha);
 	if (ret == -1) {
