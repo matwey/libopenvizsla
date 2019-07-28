@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: LGPL-3.0-or-later */
+
 #ifndef _CHA_H
 #define _CHA_H
 

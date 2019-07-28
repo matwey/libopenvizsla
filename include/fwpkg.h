@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: LGPL-3.0-or-later */
+
 #ifndef _FWPKG_H
 #define _FWPKG_H
 

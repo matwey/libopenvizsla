@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: LGPL-3.0-or-later */
+
 #ifndef _REG_H
 #define _REG_H
 
