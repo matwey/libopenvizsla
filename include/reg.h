@@ -5,9 +5,19 @@
 
 #include <stdint.h>
 
+enum reg_name {
+	CSTREAM_CFG,
+	CSTREAM_CONS_LO,
+	CSTREAM_CONS_HI,
+
+	LEDS_OUT,
+
+	REG_MAX
+};
+
 struct reg {
 	const char* error_str;
-	uint16_t leds_out;
+	uint16_t addr[REG_MAX];
 };
 
 int reg_init(struct reg* reg);

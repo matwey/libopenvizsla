@@ -13,7 +13,7 @@ START_TEST (test_reg_from_map1) {
 	struct reg reg;
 	ck_assert_int_eq(reg_init(&reg), 0);
 	ck_assert_int_eq(reg_from_map(&reg, x), 0);
-	ck_assert_int_eq(reg.leds_out, 0x42);
+	ck_assert_int_eq(reg.addr[LEDS_OUT], 0x42);
 }
 END_TEST
 
