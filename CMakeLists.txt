@@ -11,9 +11,10 @@ pkg_check_modules(CHECK REQUIRED check)
 pkg_check_modules(LIBFTDI REQUIRED libftdi1)
 pkg_check_modules(LIBZIP REQUIRED libzip>=1.0)
 
-set(CMAKE_C_FLAGS "-std=c99 ${LIBFTDI_C_FLAGS} ${LIBZIP_C_FLAGS}")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99 ${LIBFTDI_C_FLAGS} ${LIBZIP_C_FLAGS}")
 
 include_directories ("${PROJECT_SOURCE_DIR}/include")
+include_directories ("${CMAKE_CURRENT_BINARY_DIR}")
 include_directories ("${LIBFTDI_INCLUDE_DIRS}")
 if(LIBZIP_INCLUDE_DIRS)
 include_directories ("${LIBZIP_INCLUDE_DIRS}")
@@ -25,8 +26,20 @@ add_custom_command(OUTPUT ov3.fwpkg.o
 	COMMAND objcopy --rename-section .data=.rodata,contents,readonly ${CMAKE_CURRENT_BINARY_DIR}/ov3.fwpkg.o ${CMAKE_CURRENT_BINARY_DIR}/ov3.fwpkg.o
 	MAIN_DEPENDENCY ov3.fwpkg)
 
+find_program(GPERF NAMES gperf)
+if(NOT GPERF)
+	message(FATAL_ERROR "Could not find gperf tool")
+endif()
+
+add_custom_command(OUTPUT reg_gperf.h
+	WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+	COMMAND ${GPERF} -t -L C src/reg.gperf > ${CMAKE_CURRENT_BINARY_DIR}/reg_gperf.h
+	MAIN_DEPENDENCY src/reg.gperf)
+
 file(GLOB_RECURSE SOURCES src/*.c)
-add_library(openvizsla SHARED ${SOURCES} ov3.fwpkg.o)
+add_library(openvizsla SHARED ${SOURCES}
+	${CMAKE_CURRENT_BINARY_DIR}/ov3.fwpkg.o
+	${CMAKE_CURRENT_BINARY_DIR}/reg_gperf.h)
 target_link_libraries(openvizsla ${LIBFTDI_LIBRARIES} ${LIBZIP_LIBRARIES})
 set_target_properties(openvizsla PROPERTIES VERSION 0.0.0 SOVERSION 0)
 

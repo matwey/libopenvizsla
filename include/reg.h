@@ -5,13 +5,21 @@
 
 #include <stdint.h>
 
-struct reg {
-	const char* error_str;
-	uint16_t leds_out;
+enum reg_name {
+	CSTREAM_CFG,
+	CSTREAM_CONS_LO,
+	CSTREAM_CONS_HI,
+
+	LEDS_OUT,
+
+	REG_MAX
 };
 
-int reg_init(struct reg* reg);
-int reg_from_map(struct reg* reg, char* map);
-int reg_validate(struct reg* reg);
+struct reg {
+	const char* error_str;
+	uint16_t addr[REG_MAX];
+};
+
+int reg_init(struct reg* reg, char* map);
 
 #endif // _REG_H
