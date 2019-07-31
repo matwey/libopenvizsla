@@ -4,8 +4,10 @@
 
 #include <cha.h>
 #include <chb.h>
+#include <fwpkg.h>
 
 struct ov_device {
+	struct fwpkg fwpkg;
 	struct cha cha;
 	struct chb chb;
 	struct cha_loop loop;
@@ -14,6 +16,12 @@ struct ov_device {
 
 int ov_init(struct ov_device* ov) {
 	int ret = 0;
+
+	ret = fwpkg_from_preload(&ov->fwpkg);
+	if (ret < 0) {
+		ov->error_str = fwpkg_get_error_string(&ov->fwpkg);
+		goto error_fwpkg_from_preload;
+	}
 
 	ret = cha_init(&ov->cha);
 	if (ret < 0) {
@@ -32,7 +40,8 @@ int ov_init(struct ov_device* ov) {
 error_chb_init:
 	cha_destroy(&ov->cha);
 error_cha_init:
-
+	fwpkg_free(&ov->fwpkg);
+error_fwpkg_from_preload:
 	return ret;
 }
 
@@ -63,6 +72,7 @@ error_cha_open:
 void ov_destroy(struct ov_device* ov) {
 	chb_destroy(&ov->chb);
 	cha_destroy(&ov->cha);
+	fwpkg_free(&ov->fwpkg);
 }
 
 int ov_get_usb_speed(struct ov_device* ov, enum ov_usb_speed* speed) {
