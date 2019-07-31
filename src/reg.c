@@ -83,3 +83,7 @@ int reg_validate(struct reg* reg) {
 
 	return 0;
 }
+
+const char* reg_get_error_string(struct reg* reg) {
+	return reg->error_str;
+}

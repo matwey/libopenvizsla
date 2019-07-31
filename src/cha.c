@@ -144,8 +144,18 @@ fail_ftdi_set_bitmode_reset:
 	return -1;
 }
 
-int cha_init(struct cha* cha) {
+int cha_init(struct cha* cha, char* map) {
 	memset(cha, 0, sizeof(struct cha));
+
+	if (reg_init(&cha->reg) < 0) {
+		cha->error_str = reg_get_error_string(&cha->reg);
+		goto fail_reg_init;
+	}
+
+	if (reg_from_map(&cha->reg, map) < 0) {
+		cha->error_str = reg_get_error_string(&cha->reg);
+		goto fail_reg_from_map;
+	}
 
 	if (ftdi_init(&cha->ftdi) < 0) {
 		cha->error_str = ftdi_get_error_string(&cha->ftdi);
@@ -162,6 +172,8 @@ int cha_init(struct cha* cha) {
 fail_ftdi_set_interface:
 	ftdi_deinit(&cha->ftdi);
 fail_ftdi_init:
+fail_reg_from_map:
+fail_reg_init:
 	return -1;
 }
 

@@ -61,7 +61,7 @@ int main(int argc, char** argv) {
 		return 1;
 	}
 
-	ret = cha_init(&cha);
+	ret = cha_init(&cha, "");
 	if (ret == -1) {
 		fprintf(stderr, cha_get_error_string(&cha));
 		return 1;

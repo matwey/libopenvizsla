@@ -6,6 +6,8 @@
 #include <chb.h>
 #include <fwpkg.h>
 
+#include <stdlib.h>
+
 struct ov_device {
 	struct fwpkg fwpkg;
 	struct cha cha;
@@ -16,6 +18,8 @@ struct ov_device {
 
 int ov_init(struct ov_device* ov) {
 	int ret = 0;
+	char* map = NULL;
+	size_t map_size = 0;
 
 	ret = fwpkg_from_preload(&ov->fwpkg);
 	if (ret < 0) {
@@ -23,11 +27,28 @@ int ov_init(struct ov_device* ov) {
 		goto error_fwpkg_from_preload;
 	}
 
-	ret = cha_init(&ov->cha);
+	map_size = fwpkg_map_size(&ov->fwpkg)+1;
+	map = malloc(map_size);
+	if (map == NULL) {
+		ov->error_str = "Cannot allocate memory for register map";
+		goto error_malloc;
+	}
+
+	ret = fwpkg_read_map(&ov->fwpkg, map, &map_size);
+	if (ret < 0) {
+		ov->error_str = fwpkg_get_error_string(&ov->fwpkg);
+		goto error_fwpkg_read_map;
+	}
+	map[map_size] = '\0';
+
+	ret = cha_init(&ov->cha, map);
 	if (ret < 0) {
 		ov->error_str = cha_get_error_string(&ov->cha);
 		goto error_cha_init;
 	}
+
+	free(map);
+	map = NULL;
 
 	ret = chb_init(&ov->chb);
 	if (ret < 0) {
@@ -40,6 +61,11 @@ int ov_init(struct ov_device* ov) {
 error_chb_init:
 	cha_destroy(&ov->cha);
 error_cha_init:
+error_fwpkg_read_map:
+	if (map) {
+		free(map);
+	}
+error_malloc:
 	fwpkg_free(&ov->fwpkg);
 error_fwpkg_from_preload:
 	return ret;

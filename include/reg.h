@@ -16,12 +16,14 @@ enum reg_name {
 };
 
 struct reg {
-	const char* error_str;
 	uint16_t addr[REG_MAX];
+	const char* error_str;
 };
 
 int reg_init(struct reg* reg);
 int reg_from_map(struct reg* reg, char* map);
 int reg_validate(struct reg* reg);
+
+const char* reg_get_error_string(struct reg* reg);
 
 #endif // _REG_H

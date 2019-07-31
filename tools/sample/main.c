@@ -41,7 +41,7 @@ int main(int argc, char** argv) {
 
 	struct ftdi_version_info version;
 
-	ret = cha_init(&cha);
+	ret = cha_init(&cha, "");
 	if (ret == -1) {
 		fprintf(stderr, cha_get_error_string(&cha));
 		return 1;

@@ -4,13 +4,16 @@
 #define _CHA_H
 
 #include <ov.h>
-#include <ftdi.h>
+#include <reg.h>
 #include <decoder.h>
+
+#include <ftdi.h>
 
 #include <stdint.h>
 #include <memory.h>
 
 struct cha {
+	struct reg reg;
 	struct ftdi_context ftdi;
 	const char* error_str;
 };
@@ -28,7 +31,7 @@ struct cha_loop {
 	struct frame_decoder fd;
 };
 
-int cha_init(struct cha* cha);
+int cha_init(struct cha* cha, char* map);
 int cha_open(struct cha* cha);
 int cha_switch_config_mode(struct cha* cha);
 int cha_switch_fifo_mode(struct cha* cha);
