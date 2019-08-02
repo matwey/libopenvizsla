@@ -4,114 +4,38 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <bit.h>
-#include <fwpkg.h>
-#include <cha.h>
-#include <chb.h>
-
-#define PORTB_DONE_BIT     (1 << 2)  // GPIOH2
-#define PORTB_INIT_BIT     (1 << 5)  // GPIOH5
-
-int print_status(struct chb* chb) {
-	int ret;
-	uint8_t status;
-
-	ret = chb_get_status(chb, &status);
-	if (ret == -1) {
-		fprintf(stderr, chb_get_error_string(chb));
-		return -1;
-	}
-
-	printf("Device status: %02x %s %s\n", status, status & PORTB_INIT_BIT ? "init" : "", status & PORTB_DONE_BIT ? "done" : "");
-
-	return 0;
-}
+#include <ov.h>
 
 int main(int argc, char** argv) {
 	int ret;
-	size_t size;
-	uint8_t* firmware;
-	struct fwpkg fwpkg;
-	struct bit bit;
-	struct cha cha;
-	struct chb chb;
-	
-	ret = fwpkg_from_preload(&fwpkg);
-	if (ret == -1) {
-		fprintf(stderr, fwpkg_get_error_string(&fwpkg));
+	struct ov_device* ov;
+	const char* filename = NULL;
+
+	if (argc > 1) {
+		filename = argv[1];
+	}
+
+	ov = ov_new();
+
+	ret = ov_open(ov);
+	if (ret < 0) {
+		fprintf(stderr, "%s: %s\n", "Cannot open OpenVizsla device", ov_get_error_string(ov));
+
+		ov_free(ov);
 		return 1;
 	}
 
-	size = fwpkg_bitstream_size(&fwpkg);
-	firmware = malloc(size);
-	if (firmware == NULL) {
-		fprintf(stderr, "Cannot allocate memory for firmware %zu", size);
+	ret = ov_load_firmware(ov, filename);
+	if (ret < 0) {
+		fprintf(stderr, "%s: %s\n", "Cannot load firmware", ov_get_error_string(ov));
+
+		ov_free(ov);
 		return 1;
 	}
 
-	ret = fwpkg_read_bitstream(&fwpkg, firmware, &size);
+	printf("%s", "Firmware loaded\n");
 
-	if (ret == -1) {
-		fprintf(stderr, fwpkg_get_error_string(&fwpkg));
-		return 1;
-	}
-
-	if (bit_init(&bit, firmware, size) < 0) {
-		fprintf(stderr, bit_get_error_string(&bit));
-		return 1;
-	}
-
-	ret = cha_init(&cha);
-	if (ret == -1) {
-		fprintf(stderr, cha_get_error_string(&cha));
-		return 1;
-	}
-
-	ret = chb_init(&chb);
-	if (ret == -1) {
-		fprintf(stderr, chb_get_error_string(&chb));
-		return 1;
-	}
-
-	ret = cha_open(&cha);
-	if (ret == -1) {
-		fprintf(stderr, cha_get_error_string(&cha));
-		return 1;
-	}
-
-	ret = chb_open(&chb);
-	if (ret == -1) {
-		fprintf(stderr, chb_get_error_string(&chb));
-		return 1;
-	}
-
-	if (cha_switch_config_mode(&cha) < 0) {
-		fprintf(stderr, cha_get_error_string(&cha));
-		return 1;
-	}
-
-	if (print_status(&chb) < 0)
-		return 1;
-
-	if (chb_switch_program_mode(&chb) < 0) {
-		fprintf(stderr, chb_get_error_string(&chb));
-		return 1;
-	}
-
-	if (bit_load_firmware(&bit, &cha, &chb) < 0) {
-		fprintf(stderr, bit_get_error_string(&bit));
-		return 1;
-	}
-
-	if (cha_switch_fifo_mode(&cha) < 0) {
-		fprintf(stderr, cha_get_error_string(&cha));
-		return 1;
-	}
-
-	chb_destroy(&chb);
-	cha_destroy(&cha);
-	fwpkg_destroy(&fwpkg);
-	free(firmware);
+	ov_free(ov);
 
 	return 0;
 }
