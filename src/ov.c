@@ -83,7 +83,15 @@ int ov_open(struct ov_device* ov) {
 		goto fail_chb_open;
 	}
 
-	/* TODO: Check the board status and upload firmware if required */
+	ret = ov_get_device_status(ov);
+	if (ret < 0) {
+		goto fail_ov_get_device_status;
+	} else if (ret == 0) {
+		ret = ov_load_firmware(ov, NULL);
+		if (ret < 0) {
+			goto fail_ov_load_firmware;
+		}
+	}
 
 	ret = cha_switch_fifo_mode(&ov->cha);
 	if (ret < 0) {
@@ -101,6 +109,8 @@ int ov_open(struct ov_device* ov) {
 
 fail_cha_stop_stream:
 fail_cha_switch_fifo_mode:
+fail_ov_load_firmware:
+fail_ov_get_device_status:
 fail_chb_open:
 	// FIXME: close cha?
 fail_cha_open:
