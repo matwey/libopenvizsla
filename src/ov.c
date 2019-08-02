@@ -4,6 +4,8 @@
 
 #include <cha.h>
 #include <chb.h>
+#include <bit.h>
+#include <fwpkg.h>
 
 #include <stdlib.h>
 
@@ -158,6 +160,84 @@ int ov_capture_stop(struct ov_device* ov) {
 	}
 
 	return 0;
+}
+
+int ov_load_firmware(struct ov_device* ov, const char* filename) {
+	struct fwpkg fwpkg;
+	struct bit bit;
+	size_t size;
+	void* tmp = NULL;
+	int ret = 0;
+
+	ret = (filename ? fwpkg_from_file(&fwpkg, filename) : fwpkg_from_preload(&fwpkg));
+	if (ret < 0) {
+		ov->error_str = fwpkg_get_error_string(&fwpkg);
+		goto fail_fwpkg_from;
+	}
+
+	size = fwpkg_bitstream_size(&fwpkg);
+	tmp = malloc(size);
+	if (!tmp) {
+		ov->error_str = "Cannot allocate memory for firmware bitstream";
+		goto fail_malloc;
+	}
+
+	ret = fwpkg_read_bitstream(&fwpkg, tmp, &size);
+	if (ret < 0) {
+		ov->error_str = fwpkg_get_error_string(&fwpkg);
+		goto fail_fwpkg_read_bitstream;
+	}
+
+	ret = bit_init(&bit, tmp, size);
+	if (ret < 0) {
+		ov->error_str = bit_get_error_string(&bit);
+		goto fail_bit_init;
+	}
+
+	ret = cha_switch_config_mode(&ov->cha);
+	if (ret < 0) {
+		ov->error_str = cha_get_error_string(&ov->cha);
+		goto fail_cha_switch_config_mode;
+	}
+
+	ret = chb_switch_program_mode(&ov->chb);
+	if (ret < 0) {
+		ov->error_str = chb_get_error_string(&ov->chb);
+		goto fail_chb_switch_program_mode;
+	}
+
+	ret = bit_load_firmware(&bit, &ov->cha, &ov->chb);
+	if (ret < 0) {
+		ov->error_str = bit_get_error_string(&bit);
+		goto fail_bit_load_firmware;
+	}
+
+	free(tmp);
+	tmp = NULL;
+
+	ret = cha_switch_fifo_mode(&ov->cha);
+	if (ret < 0) {
+		ov->error_str = cha_get_error_string(&ov->cha);
+		goto fail_cha_switch_fifo_mode;
+	}
+
+	return 0;
+
+fail_cha_switch_fifo_mode:
+fail_bit_load_firmware:
+fail_chb_switch_program_mode:
+	cha_switch_fifo_mode(&ov->cha);
+fail_cha_switch_config_mode:
+fail_bit_init:
+fail_fwpkg_read_bitstream:
+	if (tmp) {
+		free(tmp);
+	}
+fail_malloc:
+	fwpkg_destroy(&fwpkg);
+fail_fwpkg_from:
+
+	return -1;
 }
 
 const char* ov_get_error_string(struct ov_device* ov) {

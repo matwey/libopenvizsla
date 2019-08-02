@@ -34,6 +34,8 @@ int ov_capture_start(struct ov_device* ov, struct ov_packet* packet, size_t pack
 int ov_capture_dispatch(struct ov_device* ov, int count);
 int ov_capture_stop(struct ov_device* ov);
 
+int ov_load_firmware(struct ov_device* ov, const char* filename);
+
 const char* ov_get_error_string(struct ov_device* ov);
 
 #endif // _OV_H
