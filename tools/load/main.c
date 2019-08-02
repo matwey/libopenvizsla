@@ -31,28 +31,28 @@ int main(int argc, char** argv) {
 	int ret;
 	size_t size;
 	uint8_t* firmware;
-	struct fwpkg* fwpkg = fwpkg_new();
+	struct fwpkg fwpkg;
 	struct bit bit;
 	struct cha cha;
 	struct chb chb;
 	
-	ret = fwpkg_from_preload(fwpkg);
+	ret = fwpkg_from_preload(&fwpkg);
 	if (ret == -1) {
-		fprintf(stderr, fwpkg_get_error_string(fwpkg));
+		fprintf(stderr, fwpkg_get_error_string(&fwpkg));
 		return 1;
 	}
 
-	size = fwpkg_bitstream_size(fwpkg);
+	size = fwpkg_bitstream_size(&fwpkg);
 	firmware = malloc(size);
 	if (firmware == NULL) {
 		fprintf(stderr, "Cannot allocate memory for firmware %zu", size);
 		return 1;
 	}
 
-	ret = fwpkg_read_bitstream(fwpkg, firmware, &size);
+	ret = fwpkg_read_bitstream(&fwpkg, firmware, &size);
 
 	if (ret == -1) {
-		fprintf(stderr, fwpkg_get_error_string(fwpkg));
+		fprintf(stderr, fwpkg_get_error_string(&fwpkg));
 		return 1;
 	}
 
@@ -110,7 +110,7 @@ int main(int argc, char** argv) {
 
 	chb_destroy(&chb);
 	cha_destroy(&cha);
-	fwpkg_free(fwpkg);
+	fwpkg_destroy(&fwpkg);
 	free(firmware);
 
 	return 0;
