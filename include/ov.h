@@ -23,9 +23,9 @@ enum ov_usb_speed {
 	OV_HIGH_SPEED = 0x48
 };
 
-int  ov_init(struct ov_device* ov);
+struct ov_device* ov_new(void);
 int  ov_open(struct ov_device* ov);
-void ov_destroy(struct ov_device* ov);
+void ov_free(struct ov_device* ov);
 
 int ov_get_usb_speed(struct ov_device* ov, enum ov_usb_speed* speed);
 int ov_set_usb_speed(struct ov_device* ov, enum ov_usb_speed speed);

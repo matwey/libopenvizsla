@@ -5,6 +5,8 @@
 #include <cha.h>
 #include <chb.h>
 
+#include <stdlib.h>
+
 struct ov_device {
 	struct cha cha;
 	struct chb chb;
@@ -12,8 +14,16 @@ struct ov_device {
 	const char* error_str;
 };
 
-int ov_init(struct ov_device* ov) {
+struct ov_device* ov_new(void) {
+	struct ov_device* ov = NULL;
 	int ret = 0;
+
+	ov = malloc(sizeof(struct ov_device));
+	if (!ov) {
+		goto error_malloc;
+	}
+
+	memset(ov, 0, sizeof(struct ov_device));
 
 	ret = cha_init(&ov->cha);
 	if (ret < 0) {
@@ -27,13 +37,15 @@ int ov_init(struct ov_device* ov) {
 		goto error_chb_init;
 	}
 
-	return 0;
+	return ov;
 
 error_chb_init:
 	cha_destroy(&ov->cha);
 error_cha_init:
+	free(ov);
+error_malloc:
 
-	return ret;
+	return NULL;
 }
 
 int ov_open(struct ov_device* ov) {
@@ -60,9 +72,10 @@ error_cha_open:
 	return ret;
 }
 
-void ov_destroy(struct ov_device* ov) {
+void ov_free(struct ov_device* ov) {
 	chb_destroy(&ov->chb);
 	cha_destroy(&ov->cha);
+	free(ov);
 }
 
 int ov_get_usb_speed(struct ov_device* ov, enum ov_usb_speed* speed) {
