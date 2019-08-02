@@ -20,7 +20,7 @@ struct ov_device* ov_new(void) {
 
 	ov = malloc(sizeof(struct ov_device));
 	if (!ov) {
-		goto error_malloc;
+		goto fail_malloc;
 	}
 
 	memset(ov, 0, sizeof(struct ov_device));
@@ -28,22 +28,22 @@ struct ov_device* ov_new(void) {
 	ret = cha_init(&ov->cha);
 	if (ret < 0) {
 		ov->error_str = cha_get_error_string(&ov->cha);
-		goto error_cha_init;
+		goto fail_cha_init;
 	}
 
 	ret = chb_init(&ov->chb);
 	if (ret < 0) {
 		ov->error_str = chb_get_error_string(&ov->chb);
-		goto error_chb_init;
+		goto fail_chb_init;
 	}
 
 	return ov;
 
-error_chb_init:
+fail_chb_init:
 	cha_destroy(&ov->cha);
-error_cha_init:
+fail_cha_init:
 	free(ov);
-error_malloc:
+fail_malloc:
 
 	return NULL;
 }
@@ -54,20 +54,20 @@ int ov_open(struct ov_device* ov) {
 	ret = cha_open(&ov->cha);
 	if (ret < 0) {
 		ov->error_str = cha_get_error_string(&ov->cha);
-		goto error_cha_open;
+		goto fail_cha_open;
 	}
 
 	ret = chb_open(&ov->chb);
 	if (ret < 0) {
 		ov->error_str = chb_get_error_string(&ov->chb);
-		goto error_chb_open;
+		goto fail_chb_open;
 	}
 
 	return 0;
 
-error_chb_open:
+fail_chb_open:
 	// FIXME: close cha?
-error_cha_open:
+fail_cha_open:
 
 	return ret;
 }
