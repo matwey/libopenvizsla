@@ -9,12 +9,30 @@
 
 #include <stdlib.h>
 
+#define PORTB_DONE_BIT     (1 << 2)  // GPIOH2
+#define PORTB_INIT_BIT     (1 << 5)  // GPIOH5
+
 struct ov_device {
 	struct cha cha;
 	struct chb chb;
 	struct cha_loop loop;
 	const char* error_str;
 };
+
+/* cha must be in config mode to operate */
+static int ov_get_device_status(struct ov_device* ov) {
+	const uint8_t mask = PORTB_INIT_BIT | PORTB_DONE_BIT;
+	uint8_t status = 0;
+	int ret = 0;
+
+	ret = chb_get_status(&ov->chb, &status);
+	if (ret < 0) {
+		ov->error_str = chb_get_error_string(&ov->chb);
+		return -1;
+	}
+
+	return (status & mask) == mask;
+}
 
 struct ov_device* ov_new(void) {
 	struct ov_device* ov = NULL;
