@@ -6,7 +6,7 @@
 START_TEST (test_fwpkg_load1) {
 	struct fwpkg fwpkg;
 	int ret;
-	ret = fwpkg_from_file(&fwpkg, PROJECT_ROOT "/ov3.fwpkg");
+	ret = fwpkg_init_from_file(&fwpkg, PROJECT_ROOT "/ov3.fwpkg");
 	ck_assert_int_eq(ret, 0);
 	fwpkg_destroy(&fwpkg);
 }
@@ -14,7 +14,7 @@ END_TEST
 START_TEST (test_fwpkg_load2) {
 	struct fwpkg fwpkg;
 	int ret;
-	ret = fwpkg_from_preload(&fwpkg);
+	ret = fwpkg_init_from_preload(&fwpkg);
 	ck_assert_int_eq(ret, 0);
 	fwpkg_destroy(&fwpkg);
 }
@@ -22,7 +22,7 @@ END_TEST
 START_TEST (test_fwpkg_size1) {
 	struct fwpkg fwpkg;
 	int ret;
-	ret = fwpkg_from_file(&fwpkg, PROJECT_ROOT "/ov3.fwpkg");
+	ret = fwpkg_init_from_file(&fwpkg, PROJECT_ROOT "/ov3.fwpkg");
 	ck_assert_int_eq(ret, 0);
 	ck_assert_uint_eq(fwpkg_map_size(&fwpkg), 2080);
 	ck_assert_uint_eq(fwpkg_bitstream_size(&fwpkg), 340972);
@@ -34,7 +34,7 @@ START_TEST (test_fwpkg_read1) {
 	size_t size;
 	struct fwpkg fwpkg;
 	int ret;
-	ret = fwpkg_from_file(&fwpkg, PROJECT_ROOT "/ov3.fwpkg");
+	ret = fwpkg_init_from_file(&fwpkg, PROJECT_ROOT "/ov3.fwpkg");
 	ck_assert_int_eq(ret, 0);
 	size = fwpkg_map_size(&fwpkg);
 	buf = malloc(size);
@@ -49,7 +49,7 @@ START_TEST (test_fwpkg_read2) {
 	size_t size;
 	struct fwpkg fwpkg;
 	int ret;
-	ret = fwpkg_from_file(&fwpkg, PROJECT_ROOT "/ov3.fwpkg");
+	ret = fwpkg_init_from_file(&fwpkg, PROJECT_ROOT "/ov3.fwpkg");
 	ck_assert_int_eq(ret, 0);
 	size = fwpkg_bitstream_size(&fwpkg);
 	buf = malloc(size);
@@ -64,7 +64,7 @@ START_TEST (test_fwpkg_read3) {
 	size_t size;
 	struct fwpkg fwpkg;
 	int ret;
-	ret = fwpkg_from_preload(&fwpkg);
+	ret = fwpkg_init_from_preload(&fwpkg);
 	ck_assert_int_eq(ret, 0);
 	size = fwpkg_map_size(&fwpkg);
 	buf = malloc(size);
@@ -79,7 +79,7 @@ START_TEST (test_fwpkg_read4) {
 	size_t size;
 	struct fwpkg fwpkg;
 	int ret;
-	ret = fwpkg_from_preload(&fwpkg);
+	ret = fwpkg_init_from_preload(&fwpkg);
 	ck_assert_int_eq(ret, 0);
 	size = fwpkg_bitstream_size(&fwpkg);
 	buf = malloc(size);

@@ -72,7 +72,11 @@ static int fwpkg_locate_files(struct fwpkg* fwpkg) {
 	return 0;
 }
 
-int fwpkg_from_file(struct fwpkg* fwpkg, const char* filename) {
+int fwpkg_init(struct fwpkg* fwpkg, const char* filename) {
+	return (filename ? fwpkg_init_from_file(fwpkg, filename) : fwpkg_init_from_preload(fwpkg));
+}
+
+int fwpkg_init_from_file(struct fwpkg* fwpkg, const char* filename) {
 	zip_error_t ze;
 	int error;
 
@@ -88,7 +92,7 @@ int fwpkg_from_file(struct fwpkg* fwpkg, const char* filename) {
 	return fwpkg_locate_files(fwpkg);
 }
 
-int fwpkg_from_preload(struct fwpkg* fwpkg) {
+int fwpkg_init_from_preload(struct fwpkg* fwpkg) {
 	zip_error_t error;
 	zip_source_t *src = NULL;
 

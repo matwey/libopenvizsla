@@ -197,7 +197,7 @@ int ov_load_firmware(struct ov_device* ov, const char* filename) {
 	void* tmp = NULL;
 	int ret = 0;
 
-	ret = (filename ? fwpkg_from_file(&fwpkg, filename) : fwpkg_from_preload(&fwpkg));
+	ret = fwpkg_init(&fwpkg, filename);
 	if (ret < 0) {
 		ov->error_str = fwpkg_get_error_string(&fwpkg);
 		goto fail_fwpkg_from;

@@ -12,8 +12,9 @@ struct fwpkg {
 	const char* error_str;
 };
 
-int fwpkg_from_file(struct fwpkg* fwpkg, const char* filename);
-int fwpkg_from_preload(struct fwpkg* fwpkg);
+int fwpkg_init(struct fwpkg* fwpkg, const char* filename);
+int fwpkg_init_from_file(struct fwpkg* fwpkg, const char* filename);
+int fwpkg_init_from_preload(struct fwpkg* fwpkg);
 void fwpkg_destroy(struct fwpkg* fwpkg);
 
 const char* fwpkg_get_error_string(struct fwpkg* fwpkg);
