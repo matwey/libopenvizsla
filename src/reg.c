@@ -59,7 +59,7 @@ static int reg_validate(struct reg* reg) {
 	size_t i = 0;
 
 	for (i = 0; i < REG_MAX; ++i) {
-		if (reg->addr[REG_MAX] == 0xffff) {
+		if (reg->addr[i] == 0xffff) {
 			reg->error_str = "Missed register address";
 			return -1;
 		}
