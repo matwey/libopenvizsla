@@ -15,7 +15,7 @@ int main(int argc, char** argv) {
 		filename = argv[1];
 	}
 
-	ov = ov_new();
+	ov = ov_new(filename);
 
 	ret = ov_open(ov);
 	if (ret < 0) {

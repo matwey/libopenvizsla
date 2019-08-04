@@ -23,7 +23,7 @@ enum ov_usb_speed {
 	OV_HIGH_SPEED = 0x48
 };
 
-struct ov_device* ov_new(void);
+struct ov_device* ov_new(const char* firmware_filename);
 int  ov_open(struct ov_device* ov);
 void ov_free(struct ov_device* ov);
 

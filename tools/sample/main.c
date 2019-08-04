@@ -32,7 +32,7 @@ int main(int argc, char** argv) {
 		char buf[1024];
 	} p;
 
-	ov = ov_new();
+	ov = ov_new(NULL);
 	if (!ov) {
 		fprintf(stderr, "%s\n", "Cannot create ov_device handler");
 		return 1;
