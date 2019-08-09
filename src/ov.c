@@ -121,7 +121,7 @@ struct ov_device* ov_new(const char* firmware_filename) {
 		goto fail_fwpkg_init;
 	}
 
-	ret = cha_init(&ov->cha);
+	ret = cha_init(&ov->cha, &ov->fwpkg);
 	if (ret < 0) {
 		ov->error_str = cha_get_error_string(&ov->cha);
 		goto fail_cha_init;
@@ -272,6 +272,7 @@ int ov_capture_stop(struct ov_device* ov) {
 int ov_load_firmware(struct ov_device* ov, const char* filename) {
 	int ret = 0;
 	struct fwpkg fwpkg;
+	struct reg reg;
 
 	ret = fwpkg_init(&fwpkg, filename);
 	if (ret < 0) {
@@ -279,16 +280,30 @@ int ov_load_firmware(struct ov_device* ov, const char* filename) {
 		goto fail_fwpkg_init;
 	}
 
+	ret = reg_init_from_fwpkg(&reg, &fwpkg);
+	if (ret < 0) {
+		ov->error_str = reg_get_error_string(&reg);
+		goto fail_reg_init_from_fwpkg;
+	}
+
 	ret = ov_load_firmware_from_fwpkg(ov, &fwpkg);
 	if (ret < 0) {
 		goto fail_ov_load_firmware;
+	}
+
+	ret = cha_set_reg(&ov->cha, &reg);
+	if (ret < 0) {
+		ov->error_str = cha_get_error_string(&ov->cha);
+		goto fail_cha_set_reg;
 	}
 
 	fwpkg_destroy(&fwpkg);
 
 	return 0;
 
+fail_cha_set_reg:
 fail_ov_load_firmware:
+fail_reg_init_from_fwpkg:
 	fwpkg_destroy(&fwpkg);
 fail_fwpkg_init:
 

@@ -144,8 +144,16 @@ fail_ftdi_set_bitmode_reset:
 	return -1;
 }
 
-int cha_init(struct cha* cha) {
+int cha_init(struct cha* cha, struct fwpkg* fwpkg) {
+	int ret = 0;
+
 	memset(cha, 0, sizeof(struct cha));
+
+	ret = reg_init_from_fwpkg(&cha->reg, fwpkg);
+	if (ret < 0) {
+		cha->error_str = reg_get_error_string(&cha->reg);
+		goto fail_reg_init_from_fwpkg;
+	}
 
 	if (ftdi_init(&cha->ftdi) < 0) {
 		cha->error_str = ftdi_get_error_string(&cha->ftdi);
@@ -162,6 +170,8 @@ int cha_init(struct cha* cha) {
 fail_ftdi_set_interface:
 	ftdi_deinit(&cha->ftdi);
 fail_ftdi_init:
+fail_reg_init_from_fwpkg:
+
 	return -1;
 }
 
@@ -579,6 +589,18 @@ fail_libusb_submit_transfer:
 fail_libusb_alloc_transfer:
 fail_read_from_ftdi:
 	return -1;
+}
+
+int cha_set_reg(struct cha* cha, struct reg* reg) {
+	int ret = 0;
+
+	ret = reg_init_from_reg(&cha->reg, reg);
+	if (ret < 0) {
+		cha->error_str = reg_get_error_string(&cha->reg);
+		return -1;
+	}
+
+	return 0;
 }
 
 void cha_destroy(struct cha* cha) {
