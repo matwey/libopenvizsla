@@ -44,6 +44,29 @@ START_TEST (test_reg_from_map2) {
 }
 END_TEST
 
+START_TEST (test_reg_from_fwpkg1) {
+	struct reg reg;
+	ck_assert_int_eq(reg_init_from_fwpkg(&reg, &fwpkg), 0);
+	ck_assert_int_eq(reg.addr[CSTREAM_CFG], 0x800);
+	ck_assert_int_eq(reg.addr[CSTREAM_CONS_LO], 0x801);
+	ck_assert_int_eq(reg.addr[CSTREAM_CONS_HI], 0x802);
+}
+END_TEST
+
+START_TEST (test_reg_from_reg1) {
+	struct reg reg;
+	struct reg reg2;
+	ck_assert_int_eq(reg_init_from_fwpkg(&reg, &fwpkg), 0);
+	ck_assert_int_eq(reg.addr[CSTREAM_CFG], 0x800);
+	ck_assert_int_eq(reg.addr[CSTREAM_CONS_LO], 0x801);
+	ck_assert_int_eq(reg.addr[CSTREAM_CONS_HI], 0x802);
+	ck_assert_int_eq(reg_init_from_reg(&reg2, &reg), 0);
+	ck_assert_int_eq(reg2.addr[CSTREAM_CFG], 0x800);
+	ck_assert_int_eq(reg2.addr[CSTREAM_CONS_LO], 0x801);
+	ck_assert_int_eq(reg2.addr[CSTREAM_CONS_HI], 0x802);
+}
+END_TEST
+
 Suite* range_suite(void) {
 	Suite *s;
 	TCase *tc_core;
@@ -55,6 +78,8 @@ Suite* range_suite(void) {
 	tcase_add_unchecked_fixture(tc_core, setup, teardown);
 	tcase_add_test(tc_core, test_reg_from_map1);
 	tcase_add_test(tc_core, test_reg_from_map2);
+	tcase_add_test(tc_core, test_reg_from_fwpkg1);
+	tcase_add_test(tc_core, test_reg_from_reg1);
 	suite_add_tcase(s, tc_core);
 
 	return s;

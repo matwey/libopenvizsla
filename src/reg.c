@@ -90,3 +90,52 @@ int reg_init(struct reg* reg, char* map) {
 
 	return reg_init_from_map(reg, map);
 }
+
+int reg_init_from_fwpkg(struct reg* reg, struct fwpkg* fwpkg) {
+	size_t size = 0;
+	char* tmp = NULL;
+	int ret = 0;
+
+	size = fwpkg_map_size(fwpkg)+1;
+	tmp = malloc(size);
+	if (!tmp) {
+		reg->error_str = "Cannot allocate memory for register map";
+		goto fail_malloc;
+	}
+
+	ret = fwpkg_read_map(fwpkg, tmp, &size);
+	if (ret < 0) {
+		reg->error_str = fwpkg_get_error_string(fwpkg);
+		goto fail_fwpkg_read_map;
+	}
+	tmp[size] = '\0';
+
+	ret = reg_init(reg, tmp);
+	if (ret < 0) {
+		goto fail_reg_init;
+	}
+
+	free(tmp);
+	tmp = NULL;
+
+	return 0;
+
+fail_reg_init:
+fail_fwpkg_read_map:
+	if (tmp) {
+		free(tmp);
+	}
+fail_malloc:
+
+	return -1;
+}
+
+int reg_init_from_reg(struct reg* reg, struct reg* other) {
+	memmove(reg, other, sizeof(struct reg));
+
+	return 0;
+}
+
+const char* reg_get_error_string(struct reg* reg) {
+	return reg->error_str;
+}
