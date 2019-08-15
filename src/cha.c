@@ -262,6 +262,22 @@ int cha_read_reg32(struct cha* cha, uint16_t addr, uint32_t* val) {
 	return 0;
 }
 
+int cha_write_reg_by_name(struct cha* cha, enum reg_name name, uint8_t val) {
+	return cha_write_reg(cha, cha->reg.addr[name], val);
+}
+
+int cha_read_reg_by_name(struct cha* cha, enum reg_name name, uint8_t* val) {
+	return cha_read_reg(cha, cha->reg.addr[name], val);
+}
+
+int cha_write_reg32_by_name(struct cha* cha, enum reg_name name, uint32_t val) {
+	return cha_write_reg32(cha, cha->reg.addr[name], val);
+}
+
+int cha_read_reg32_by_name(struct cha* cha, enum reg_name name, uint32_t* val) {
+	return cha_read_reg32(cha, cha->reg.addr[name], val);
+}
+
 int cha_write_ulpi(struct cha* cha, uint8_t addr, uint8_t val) {
 	int ret = 0;
 	uint8_t tmp = 0;
