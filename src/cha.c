@@ -231,15 +231,15 @@ fail_switch_mode:
 	return -1;
 }
 
-int cha_write_reg(struct cha* cha, uint16_t addr, uint8_t val) {
+static int cha_write_reg(struct cha* cha, uint16_t addr, uint8_t val) {
 	return cha_transaction(cha, addr | 0x8000, &val);
 }
 
-int cha_read_reg(struct cha* cha, uint16_t addr, uint8_t* val) {
+static int cha_read_reg(struct cha* cha, uint16_t addr, uint8_t* val) {
 	return cha_transaction(cha, addr, val);
 }
 
-int cha_write_reg32(struct cha* cha, uint16_t addr, uint32_t val) {
+static int cha_write_reg32(struct cha* cha, uint16_t addr, uint32_t val) {
 	for (uint16_t i = addr + 4; i != addr; --i, val = (val >> 8)) {
 		if (cha_write_reg(cha, i - 1, val & 0xFF) == -1)
 			return -1;
@@ -248,7 +248,7 @@ int cha_write_reg32(struct cha* cha, uint16_t addr, uint32_t val) {
 	return 0;
 }
 
-int cha_read_reg32(struct cha* cha, uint16_t addr, uint32_t* val) {
+static int cha_read_reg32(struct cha* cha, uint16_t addr, uint32_t* val) {
 	uint8_t tmp = 0;
 
 	for (uint16_t i = addr; i != addr + 4; ++i) {
