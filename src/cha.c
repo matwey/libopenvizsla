@@ -375,43 +375,35 @@ int cha_set_usb_speed(struct cha* cha, enum ov_usb_speed speed) {
 int cha_start_stream(struct cha* cha) {
 	int ret = 0;
 
-	// dev.regs.SDRAM_SINK_RING_BASE.wr(ring_base)
-	ret = cha_write_reg32(cha, 0xe09, 0);
+	ret = cha_write_reg32_by_name(cha, SDRAM_SINK_RING_BASE, 0);
 	if (ret == -1)
 		return ret;
 
-	// dev.regs.SDRAM_SINK_RING_END.wr(ring_end)
-	ret = cha_write_reg32(cha, 0xe0d, 0x01000000);
+	ret = cha_write_reg32_by_name(cha, SDRAM_SINK_RING_END, 0x01000000);
 	if (ret == -1)
 		return ret;
 
-	// dev.regs.SDRAM_HOST_READ_RING_BASE.wr(ring_base)
-	ret = cha_write_reg32(cha, 0xc1c, 0);
+	ret = cha_write_reg32_by_name(cha, SDRAM_HOST_READ_RING_BASE, 0);
 	if (ret == -1)
 		return ret;
 
-	// dev.regs.SDRAM_HOST_READ_RING_END.wr(ring_end)
-	ret = cha_write_reg32(cha, 0xc20, 0x01000000);
+	ret = cha_write_reg32_by_name(cha, SDRAM_HOST_READ_RING_END, 0x01000000);
 	if (ret == -1)
 		return ret;
 
-	// dev.regs.SDRAM_SINK_PTR_READ.wr(0)
-	ret = cha_write_reg(cha, 0xe00, 0);
+	ret = cha_write_reg_by_name(cha, SDRAM_SINK_PTR_READ, 0);
 	if (ret == -1)
 		return ret;
 
-	// dev.regs.SDRAM_SINK_GO.wr(1)
-	ret = cha_write_reg(cha, 0xe11, 1);
+	ret = cha_write_reg_by_name(cha, SDRAM_SINK_GO, 1);
 	if (ret == -1)
 		return ret;
 
-	// dev.regs.SDRAM_HOST_READ_GO.wr(1)
-	ret = cha_write_reg(cha, 0xc28, 1);
+	ret = cha_write_reg_by_name(cha, SDRAM_HOST_READ_GO, 1);
 	if (ret == -1)
 		return ret;
 
-	// dev.regs.CSTREAM_CFG.wr(1)
-	ret = cha_write_reg(cha, 0x800, 1);
+	ret = cha_write_reg_by_name(cha, CSTREAM_CFG, 1);
 	if (ret == -1)
 		return ret;
 
