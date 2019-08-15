@@ -14,6 +14,10 @@ enum reg_name {
 
 	LEDS_OUT,
 
+	SDRAM_HOST_READ_GO,
+
+	SDRAM_SINK_GO,
+
 	UCFG_WDATA,
 	UCFG_WCMD,
 	UCFG_RDATA,

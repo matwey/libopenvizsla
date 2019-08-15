@@ -421,21 +421,15 @@ int cha_start_stream(struct cha* cha) {
 int cha_stop_stream(struct cha* cha) {
 	int ret = 0;
 
-	// dev.regs.SDRAM_HOST_READ_GO.wr(0)
-	// FIXME: use loaded register
-	ret = cha_write_reg(cha, 0xc28, 0);
+	ret = cha_write_reg_by_name(cha, SDRAM_HOST_READ_GO, 0);
 	if (ret == -1)
 		return ret;
 
-	// dev.regs.SDRAM_SINK_GO.wr(0)
-	// FIXME: use loaded register
-	ret = cha_write_reg(cha, 0xe11, 0);
+	ret = cha_write_reg_by_name(cha, SDRAM_SINK_GO, 0);
 	if (ret == -1)
 		return ret;
 
-	// dev.regs.CSTREAM_CFG.wr(0)
-	// FIXME: use loaded register
-	ret = cha_write_reg(cha, 0x800, 0);
+	ret = cha_write_reg_by_name(cha, CSTREAM_CFG, 0);
 	if (ret == -1)
 		return ret;
 
