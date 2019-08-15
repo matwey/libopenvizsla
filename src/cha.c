@@ -282,18 +282,16 @@ int cha_write_ulpi(struct cha* cha, uint8_t addr, uint8_t val) {
 	int ret = 0;
 	uint8_t tmp = 0;
 
-	//self.regs.ucfg_wdata.wr(value) UCFG_WDATA
-	ret = cha_write_reg(cha, 0x402, val);
+	ret = cha_write_reg_by_name(cha, UCFG_WDATA, val);
 	if (ret == -1)
 		return ret;
 
-	//self.regs.ucfg_wcmd.wr(UCFG_REG_GO | (addr & UCFG_REG_ADDRMASK))
-	ret = cha_write_reg(cha, 0x403, UCFG_REG_GO | (addr & UCFG_REG_ADDRMASK));
+	ret = cha_write_reg_by_name(cha, UCFG_WCMD, UCFG_REG_GO | (addr & UCFG_REG_ADDRMASK));
 	if (ret == -1)
 		return ret;
 
 	do {
-		ret = cha_read_reg(cha, 0x403, &tmp);
+		ret = cha_read_reg_by_name(cha, UCFG_WCMD, &tmp);
 		if (ret == -1)
 			return ret;
 	} while(tmp & UCFG_REG_GO);
@@ -305,19 +303,17 @@ int cha_read_ulpi(struct cha* cha, uint8_t addr, uint8_t* val) {
 	int ret = 0;
 	uint8_t tmp = 0;
 
-	//self.regs.ucfg_rcmd.wr(UCFG_REG_GO | (addr & UCFG_REG_ADDRMASK))
-	ret = cha_write_reg(cha, 0x405, UCFG_REG_GO | (addr & UCFG_REG_ADDRMASK));
+	ret = cha_write_reg_by_name(cha, UCFG_RCMD, UCFG_REG_GO | (addr & UCFG_REG_ADDRMASK));
 	if (ret == -1)
 		return ret;
 
 	do {
-		ret = cha_read_reg(cha, 0x405, &tmp);
+		ret = cha_read_reg_by_name(cha, UCFG_RCMD, &tmp);
 		if (ret == -1)
 			return ret;
 	} while(tmp & UCFG_REG_GO);
 
-	//self.regs.ucfg_rdata.wr(value)
-	ret = cha_read_reg(cha, 0x404, val);
+	ret = cha_read_reg_by_name(cha, UCFG_RDATA, val);
 	if (ret == -1)
 		return ret;
 

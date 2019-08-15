@@ -14,6 +14,11 @@ enum reg_name {
 
 	LEDS_OUT,
 
+	UCFG_WDATA,
+	UCFG_WCMD,
+	UCFG_RDATA,
+	UCFG_RCMD,
+
 	REG_MAX
 };
 
