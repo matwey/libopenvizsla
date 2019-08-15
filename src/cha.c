@@ -219,8 +219,7 @@ int cha_switch_fifo_mode(struct cha* cha) {
 	/* Async FPGA-to-HOST transmission in triggered by SDRAM_HOST_READ_GO.
 	 * Disable it first.
 	 */
-	// FIXME: use loaded register
-	if (cha_sync_stream(cha, 0x8c28) < 0) {
+	if (cha_sync_stream(cha, 0x8000 | cha->reg.addr[SDRAM_HOST_READ_GO]) < 0) {
 		goto fail_cha_sync_stream;
 	}
 
