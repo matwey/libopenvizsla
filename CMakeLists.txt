@@ -37,7 +37,7 @@ add_custom_command(OUTPUT reg_gperf.h
 	MAIN_DEPENDENCY src/reg.gperf)
 
 file(GLOB_RECURSE SOURCES src/*.c)
-add_library(openvizsla SHARED ${SOURCES}
+add_library(openvizsla ${SOURCES}
 	${CMAKE_CURRENT_BINARY_DIR}/ov3.fwpkg.o
 	${CMAKE_CURRENT_BINARY_DIR}/reg_gperf.h)
 target_link_libraries(openvizsla ${LIBFTDI_LIBRARIES} ${LIBZIP_LIBRARIES})
@@ -66,7 +66,8 @@ foreach(test_source IN ITEMS ${TESTS})
 	add_test(${test_name} ${test_name})
 endforeach(test_source)
 
-install(TARGETS openvizsla LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
+install(TARGETS openvizsla
+	DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
 install(FILES "include/ov.h"
 	DESTINATION ${CMAKE_INSTALL_FULL_INCLUDEDIR}/openvizsla)
 configure_file("openvizsla.pc.in" "openvizsla.pc" @ONLY)
