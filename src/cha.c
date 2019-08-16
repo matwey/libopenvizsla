@@ -80,8 +80,8 @@ fail_ftdi_write_data:
 	return -1;
 }
 
-static int cha_transaction(struct cha* cha, uint16_t addr, uint8_t* val) {
-	uint8_t msg[5] = {0x55, addr >> 8, addr & 0xFF, *val, 0x00};
+static int cha_transaction(struct cha* cha, uint16_t addr, uint8_t in_val, uint8_t* out_val) {
+	uint8_t msg[5] = {0x55, addr >> 8, addr & 0xFF, in_val, 0x00};
 	int ret;
 
 	msg[4] = cha_transaction_checksum(msg, 4);
@@ -104,7 +104,8 @@ static int cha_transaction(struct cha* cha, uint16_t addr, uint8_t* val) {
 		goto fail_transaction_checksum;
 	}
 
-	*val = msg[3];
+	if (out_val)
+		*out_val = msg[3];
 
 	return 0;
 
@@ -232,11 +233,11 @@ fail_switch_mode:
 }
 
 static int cha_write_reg(struct cha* cha, uint16_t addr, uint8_t val) {
-	return cha_transaction(cha, addr | 0x8000, &val);
+	return cha_transaction(cha, addr | 0x8000, val, NULL);
 }
 
 static int cha_read_reg(struct cha* cha, uint16_t addr, uint8_t* val) {
-	return cha_transaction(cha, addr, val);
+	return cha_transaction(cha, addr, 0, val);
 }
 
 static int cha_write_reg32(struct cha* cha, uint16_t addr, uint32_t val) {
