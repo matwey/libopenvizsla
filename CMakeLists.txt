@@ -12,7 +12,7 @@ pkg_check_modules(CHECK REQUIRED check)
 pkg_check_modules(LIBFTDI REQUIRED libftdi1)
 pkg_check_modules(LIBZIP REQUIRED libzip>=1.0)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99 ${LIBFTDI_C_FLAGS} ${LIBZIP_C_FLAGS}")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99 -D_XOPEN_SOURCE -D_XOPEN_SOURCE_EXTENDED ${LIBFTDI_C_FLAGS} ${LIBZIP_C_FLAGS}")
 
 include_directories ("${PROJECT_SOURCE_DIR}/include")
 include_directories ("${CMAKE_CURRENT_BINARY_DIR}")
