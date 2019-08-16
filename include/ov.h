@@ -6,6 +6,10 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct ov_device;
 
 struct ov_packet {
@@ -37,5 +41,9 @@ int ov_capture_stop(struct ov_device* ov);
 int ov_load_firmware(struct ov_device* ov, const char* filename);
 
 const char* ov_get_error_string(struct ov_device* ov);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // _OV_H
