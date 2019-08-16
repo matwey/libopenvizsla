@@ -67,9 +67,8 @@ foreach(test_source IN ITEMS ${TESTS})
 endforeach(test_source)
 
 install(TARGETS openvizsla LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
-install(DIRECTORY include/
-	DESTINATION ${CMAKE_INSTALL_FULL_INCLUDEDIR}/openvizsla
-	FILES_MATCHING PATTERN "*.h")
+install(FILES "include/ov.h"
+	DESTINATION ${CMAKE_INSTALL_FULL_INCLUDEDIR}/openvizsla)
 configure_file("openvizsla.pc.in" "openvizsla.pc" @ONLY)
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/openvizsla.pc"
 	DESTINATION "${CMAKE_INSTALL_FULL_LIBDIR}/pkgconfig")
