@@ -7,6 +7,8 @@
 #include <bit.h>
 #include <fwpkg.h>
 
+#include <openvizsla_export.h>
+
 #include <stdlib.h>
 
 #define PORTB_DONE_BIT     (1 << 2)  // GPIOH2
@@ -104,6 +106,7 @@ fail_malloc:
 	return -1;
 }
 
+OPENVIZSLA_EXPORT
 struct ov_device* ov_new(const char* firmware_filename) {
 	struct ov_device* ov = NULL;
 	int ret = 0;
@@ -146,6 +149,7 @@ fail_malloc:
 	return NULL;
 }
 
+OPENVIZSLA_EXPORT
 int ov_open(struct ov_device* ov) {
 	int ret = 0;
 
@@ -196,6 +200,7 @@ fail_cha_open:
 	return ret;
 }
 
+OPENVIZSLA_EXPORT
 void ov_free(struct ov_device* ov) {
 	chb_destroy(&ov->chb);
 	cha_destroy(&ov->cha);
@@ -203,6 +208,7 @@ void ov_free(struct ov_device* ov) {
 	free(ov);
 }
 
+OPENVIZSLA_EXPORT
 int ov_get_usb_speed(struct ov_device* ov, enum ov_usb_speed* speed) {
 	if (cha_get_usb_speed(&ov->cha, speed) < 0) {
 		ov->error_str = cha_get_error_string(&ov->cha);
@@ -215,6 +221,7 @@ fail_cha_get_usb_speed:
 	return -1;
 }
 
+OPENVIZSLA_EXPORT
 int ov_set_usb_speed(struct ov_device* ov, enum ov_usb_speed speed) {
 	if (cha_set_usb_speed(&ov->cha, speed) < 0) {
 		ov->error_str = cha_get_error_string(&ov->cha);
@@ -227,6 +234,7 @@ fail_cha_set_usb_speed:
 	return -1;
 }
 
+OPENVIZSLA_EXPORT
 int ov_capture_start(struct ov_device* ov, struct ov_packet* packet, size_t packet_size, ov_packet_decoder_callback callback, void* user_data) {
 
 	if (cha_loop_init(&ov->loop, &ov->cha, packet, packet_size, callback, user_data) < 0) {
@@ -250,6 +258,7 @@ fail_cha_switch_fifo_mode:
 	return -1;
 }
 
+OPENVIZSLA_EXPORT
 int ov_capture_dispatch(struct ov_device* ov, int count) {
 	int ret = 0;
 
@@ -260,6 +269,7 @@ int ov_capture_dispatch(struct ov_device* ov, int count) {
 	return ret;
 }
 
+OPENVIZSLA_EXPORT
 int ov_capture_stop(struct ov_device* ov) {
 	if (cha_stop_stream(&ov->cha) < 0) {
 		ov->error_str = cha_get_error_string(&ov->cha);
@@ -269,6 +279,7 @@ int ov_capture_stop(struct ov_device* ov) {
 	return 0;
 }
 
+OPENVIZSLA_EXPORT
 int ov_load_firmware(struct ov_device* ov, const char* filename) {
 	int ret = 0;
 	struct fwpkg fwpkg;
@@ -310,6 +321,7 @@ fail_fwpkg_init:
 	return -1;
 }
 
+OPENVIZSLA_EXPORT
 const char* ov_get_error_string(struct ov_device* ov) {
 	return ov->error_str;
 }

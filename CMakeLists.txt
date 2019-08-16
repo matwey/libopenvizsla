@@ -1,10 +1,11 @@
 cmake_minimum_required (VERSION 3.0)
-project(libopenvizsla LANGUAGES C VERSION 0.0.0)
-
-include(GNUInstallDirs)
+# CXX language is required by GenerateExportHeader
+project(libopenvizsla LANGUAGES C CXX VERSION 0.0.0)
 
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 include(CheckSymbolExists)
+include(GNUInstallDirs)
+include(GenerateExportHeader)
 
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(CHECK REQUIRED check)
@@ -37,11 +38,33 @@ add_custom_command(OUTPUT reg_gperf.h
 	MAIN_DEPENDENCY src/reg.gperf)
 
 file(GLOB_RECURSE SOURCES src/*.c)
-add_library(openvizsla ${SOURCES}
+list(APPEND SOURCES
 	${CMAKE_CURRENT_BINARY_DIR}/ov3.fwpkg.o
 	${CMAKE_CURRENT_BINARY_DIR}/reg_gperf.h)
-target_link_libraries(openvizsla ${LIBFTDI_LIBRARIES} ${LIBZIP_LIBRARIES})
-set_target_properties(openvizsla PROPERTIES VERSION 0.0.0 SOVERSION 0)
+list(APPEND LIBRARIES
+	${LIBFTDI_LIBRARIES}
+	${LIBZIP_LIBRARIES})
+
+add_library(openvizsla ${SOURCES})
+target_link_libraries(openvizsla ${LIBRARIES})
+set_target_properties(openvizsla PROPERTIES
+	VERSION 0.0.0
+	SOVERSION 0)
+generate_export_header(openvizsla)
+
+get_target_property(OPENVIZSLA_LIBRARY_TYPE openvizsla TYPE)
+if(NOT ${OPENVIZSLA_LIBRARY_TYPE} STREQUAL "STATIC_LIBRARY")
+	set_target_properties(openvizsla PROPERTIES
+		C_VISIBILITY_PRESET hidden)
+
+	add_library(openvizsla_static STATIC EXCLUDE_FROM_ALL ${SOURCES})
+	target_link_libraries(openvizsla_static ${LIBRARIES})
+	set_target_properties(openvizsla_static PROPERTIES
+		COMPILE_FLAGS -DOPENVIZSLA_STATIC_DEFINE
+		ARCHIVE_OUTPUT_NAME openvizsla)
+else()
+	add_library(openvizsla_static ALIAS openvizsla)
+endif()
 
 file(GLOB TOOLS tools/*)
 foreach(tool_target IN ITEMS ${TOOLS})
@@ -61,7 +84,7 @@ foreach(test_source IN ITEMS ${TESTS})
 	if(CHECK_INCLUDE_DIRS)
 		target_include_directories(${test_name} ${CHECK_INCLUDE_DIRS})
 	endif(CHECK_INCLUDE_DIRS)
-	target_link_libraries(${test_name} ${CHECK_LDFLAGS} openvizsla)
+	target_link_libraries(${test_name} ${CHECK_LDFLAGS} openvizsla_static)
 	set_target_properties(${test_name} PROPERTIES COMPILE_FLAGS -DPROJECT_ROOT='"${PROJECT_SOURCE_DIR}"')
 	add_test(${test_name} ${test_name})
 endforeach(test_source)
