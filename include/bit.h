@@ -7,9 +7,10 @@
 #include <chb.h>
 
 #include <memory.h>
+#include <stdint.h>
 
 struct bit {
-	const void* data;
+	const uint8_t* data;
 	size_t size;
 
 	const char* ncd_filename;
