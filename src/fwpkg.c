@@ -1,12 +1,10 @@
 /* SPDX-License-Identifier: LGPL-3.0-or-later */
 
 #include <fwpkg.h>
+#include <_binary_ov3_fwpkg.h>
 
 #include <stdlib.h>
 #include <string.h>
-
-extern const char _binary_ov3_fwpkg_start[];
-extern const char _binary_ov3_fwpkg_end[];
 
 static int fwpkg_read_file(struct fwpkg* fwpkg, void* buf, size_t* size, zip_uint64_t index) {
 	struct zip_file* file = zip_fopen_index(fwpkg->pkg, index, 0);
@@ -98,8 +96,8 @@ int fwpkg_init_from_preload(struct fwpkg* fwpkg) {
 
 	memset(fwpkg, 0, sizeof(struct fwpkg));
 
-	src = zip_source_buffer_create((const void*)_binary_ov3_fwpkg_start,
-		(const void*)_binary_ov3_fwpkg_end - (const void*)_binary_ov3_fwpkg_start, 0, &error);
+	src = zip_source_buffer_create(_binary_ov3_fwpkg,
+		_binary_ov3_fwpkg_size, 0, &error);
 	if (!src) {
 		fwpkg->error_str = zip_error_strerror(&error);
 		return -1;

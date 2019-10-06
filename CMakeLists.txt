@@ -21,11 +21,14 @@ if(LIBZIP_INCLUDE_DIRS)
 include_directories ("${LIBZIP_INCLUDE_DIRS}")
 endif(LIBZIP_INCLUDE_DIRS)
 
-add_custom_command(OUTPUT ov3.fwpkg.o
-	WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-	COMMAND ld -r -b binary -o ${CMAKE_CURRENT_BINARY_DIR}/ov3.fwpkg.o ov3.fwpkg
-	COMMAND objcopy --rename-section .data=.rodata,contents,readonly ${CMAKE_CURRENT_BINARY_DIR}/ov3.fwpkg.o ${CMAKE_CURRENT_BINARY_DIR}/ov3.fwpkg.o
-	MAIN_DEPENDENCY ov3.fwpkg)
+function(convert_to_resource input)
+	string(REGEX REPLACE "\\.| |-" "_" identifier _binary_${input})
+	file(READ ${input} filedata HEX)
+	string(REGEX REPLACE "([0-9a-f][0-9a-f])" "0x\\1," filedata ${filedata})
+	file(WRITE src/${identifier}.c "const unsigned char ${identifier}[] = {${filedata}};\nconst unsigned ${identifier}_size = sizeof(${identifier});\n")
+	file(WRITE include/${identifier}.h "extern const unsigned char ${identifier}[];\nextern const unsigned ${identifier}_size;\n")
+endfunction()
+convert_to_resource("ov3.fwpkg")
 
 find_program(GPERF NAMES gperf)
 if(NOT GPERF)
@@ -39,7 +42,6 @@ add_custom_command(OUTPUT reg_gperf.h
 
 file(GLOB_RECURSE SOURCES src/*.c)
 list(APPEND SOURCES
-	${CMAKE_CURRENT_BINARY_DIR}/ov3.fwpkg.o
 	${CMAKE_CURRENT_BINARY_DIR}/reg_gperf.h)
 list(APPEND LIBRARIES
 	${LIBFTDI_LDFLAGS}
