@@ -22,13 +22,26 @@ extern "C" {
 
 struct ov_device;
 
-struct __attribute__((packed)) ov_packet {
+#ifdef _MSC_VER
+#pragma pack(push, 1)
+#endif
+struct
+#ifdef __GNUC__
+	__attribute__((packed))
+#elif !defined(_MSC_VER)
+	#error Please provide __attribute__((packed)) for your compiler
+#endif
+ov_packet {
 	uint8_t  magic;
 	uint16_t flags;
 	uint16_t size;
 	uint32_t timestamp : 24;
 	uint8_t  data[];
 };
+#ifdef _MSC_VER
+#pragma pack(pop)
+#endif
+
 
 typedef void (*ov_packet_decoder_callback)(struct ov_packet*, void*);
 

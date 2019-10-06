@@ -5,9 +5,17 @@
 #include <stdint.h>
 #include <string.h>
 
-#include <arpa/inet.h>
-
 #define PORTB_DONE_BIT (1 << 2)
+
+inline static uint16_t uint16_from_big_endian(const uint8_t* data)
+{
+	return (data[0] << 8) | data[1];
+}
+
+inline static uint32_t uint32_from_big_endian(const uint8_t* data)
+{
+	return (data[0] << 24) | (data[1] << 16) | (data[2] << 8) | data[3];
+}
 
 inline static uint8_t bitreverse8(uint8_t x) {
 	static const uint8_t map[256] = {
@@ -53,8 +61,7 @@ static int bit_do_parse_field_str(struct bit* bit, uint8_t key, const char** str
 	bit->data += sizeof(key);
 	bit->size -= sizeof(key);
 
-	memcpy(&len, bit->data, sizeof(len));
-	len = htons(len);
+	len = uint16_from_big_endian(bit->data);
 
 	bit->data += sizeof(len);
 	bit->size -= sizeof(len);
@@ -105,8 +112,7 @@ static int bit_do_parse_field7(struct bit* bit) {
 	bit->data += sizeof(key);
 	bit->size -= sizeof(key);
 
-	memcpy(&len, bit->data, sizeof(len));
-	len = htonl(len);
+	len = uint32_from_big_endian(bit->data);
 
 	bit->bit_length = len;
 	bit->data += sizeof(len);
