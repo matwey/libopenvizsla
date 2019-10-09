@@ -66,17 +66,43 @@ int chb_open(struct chb* chb) {
 		goto fail_ftdi_usb_open;
 	}
 
+	/*
+	 * Configure FTDI MPSSE according to AN_135 "FTDI MPSSE Basics"
+	 * 4.2 Configure FTDI Port For MPSSE Use
+	 */
+
 	if (ftdi_usb_reset(&chb->ftdi) < 0) {
 		chb->error_str = ftdi_get_error_string(&chb->ftdi);
 		goto fail_ftdi_usb_reset;
 	}
-	
+
+	/* Stick with default transfer size (4096) */
+
+	/* Disable event and error characters */
+	if (ftdi_set_event_char(&chb->ftdi, 0, 0) < 0) {
+		chb->error_str = ftdi_get_error_string(&chb->ftdi);
+		goto fail_ftdi_set_event_char;
+	}
+
+	if (ftdi_set_error_char(&chb->ftdi, 0, 0) < 0) {
+		chb->error_str = ftdi_get_error_string(&chb->ftdi);
+		goto fail_ftdi_set_error_char;
+	}
+
+	/* Stick with no timeouts */
+	/* Keep latency timeout intact */
+
+	if (ftdi_setflowctrl(&chb->ftdi, SIO_RTS_CTS_HS) < 0) {
+		chb->error_str = ftdi_get_error_string(&chb->ftdi);
+		goto fail_setflowctrl;
+	}
+
 	if (ftdi_set_bitmode(&chb->ftdi, 0, BITMODE_RESET) < 0) {
 		chb->error_str = ftdi_get_error_string(&chb->ftdi);
 		goto fail_ftdi_set_bitmode_reset;
 	}
 
-	if (ftdi_set_bitmode(&chb->ftdi, SIO_SET_BITMODE_REQUEST, BITMODE_MPSSE) < 0) {
+	if (ftdi_set_bitmode(&chb->ftdi, 0, BITMODE_MPSSE) < 0) {
 		chb->error_str = ftdi_get_error_string(&chb->ftdi);
 		goto fail_ftdi_set_bitmode_mpsse;
 	}
@@ -99,6 +125,9 @@ fail_set_low:
 fail_chb_tck_divisor:
 fail_ftdi_set_bitmode_mpsse:
 fail_ftdi_set_bitmode_reset:
+fail_setflowctrl:
+fail_ftdi_set_error_char:
+fail_ftdi_set_event_char:
 fail_ftdi_usb_reset:
 	ftdi_usb_close(&chb->ftdi);
 fail_ftdi_usb_open:
