@@ -148,7 +148,8 @@ int bit_init(struct bit* bit, const void* data, size_t size) {
 }
 
 int bit_load_firmware(struct bit* bit, struct cha* cha, struct chb* chb) {
-	uint8_t buf[4 * 1024];
+	uint8_t buf[2][4 * 1024];
+	size_t bidx = 0;
 	const uint8_t* data = bit->data;
 	size_t length = bit->size;
 	struct ftdi_transfer_control* tc = NULL;
@@ -156,11 +157,11 @@ int bit_load_firmware(struct bit* bit, struct cha* cha, struct chb* chb) {
 	uint8_t status;
 	int try = 3;
 
-	while (length) {
+	for (bidx = 0; length; bidx = (bidx + 1) % 2) {
 		size_t i = 0;
 
-		for (i = 0; i < sizeof(buf) && length; i++, length--, data++) {
-			buf[i] = bitreverse8(*data);
+		for (i = 0; i < sizeof(buf[bidx]) && length; i++, length--, data++) {
+			buf[bidx][i] = bitreverse8(*data);
 		}
 
 		if (tc && ftdi_transfer_data_done(tc) < 0) {
@@ -168,7 +169,7 @@ int bit_load_firmware(struct bit* bit, struct cha* cha, struct chb* chb) {
 			return -1;
 		}
 
-		if (!(tc = ftdi_write_data_submit(&cha->ftdi, buf, i))) {
+		if (!(tc = ftdi_write_data_submit(&cha->ftdi, buf[bidx], i))) {
 			bit->error_str = ftdi_get_error_string(&cha->ftdi);
 			return -1;
 		}
