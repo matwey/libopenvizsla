@@ -42,8 +42,8 @@ list(APPEND SOURCES
 	${CMAKE_CURRENT_BINARY_DIR}/ov3.fwpkg.o
 	${CMAKE_CURRENT_BINARY_DIR}/reg_gperf.h)
 list(APPEND LIBRARIES
-	${LIBFTDI_LIBRARIES}
-	${LIBZIP_LIBRARIES})
+	${LIBFTDI_LDFLAGS}
+	${LIBZIP_LDFLAGS})
 
 add_library(openvizsla ${SOURCES})
 target_link_libraries(openvizsla ${LIBRARIES})
