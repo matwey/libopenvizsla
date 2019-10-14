@@ -5,6 +5,10 @@
 
 #include <zip.h>
 
+#if defined(_WIN32) || defined(__CYGWIN__)
+#define OV_FWPKG_RESOURCE 300
+#endif
+
 struct fwpkg {
 	struct zip* pkg;
 	zip_uint64_t map_index;

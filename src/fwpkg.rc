@@ -1,0 +1,3 @@
+#include <fwpkg.h>
+
+OV_FWPKG_RESOURCE RCDATA "../ov3.fwpkg"
