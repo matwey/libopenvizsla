@@ -182,11 +182,11 @@ int bit_load_firmware(struct bit* bit, struct cha* cha, struct chb* chb) {
 	uint8_t init_cycles[8];
 	memset(init_cycles, 0, sizeof(init_cycles));
 
-	try = 3;
-	while (try--
-	       && (ret = ftdi_write_data(&cha->ftdi, init_cycles, sizeof(init_cycles))) > 0
-	       && (ret = chb_get_high(chb, &status)) == 0
-	       && !(status & PORTB_DONE_BIT));
+	for (try = 3;
+		try && (ret = ftdi_write_data(&cha->ftdi, init_cycles, sizeof(init_cycles))) > 0
+		&& (ret = chb_get_high(chb, &status)) == 0
+		&& !(status & PORTB_DONE_BIT);
+		--try);
 
 	if (ret < 0)
 		return -1;

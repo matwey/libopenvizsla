@@ -184,9 +184,9 @@ int chb_switch_program_mode(struct chb* chb) {
 	if (chb_set_high(chb, PORTB_PROG_BIT | PORTB_M1_BIT) < 0)
 		return -1;
 
-	try = 3;
-	while (try-- && (ret = chb_get_high(chb, &status)) == 0 && (status & PORTB_DONE_BIT))
+	for (try = 3; try && (ret = chb_get_high(chb, &status)) == 0 && (status & PORTB_DONE_BIT); --try) {
 		usleep(10000);
+	}
 
 	if (ret < 0)
 		return -1;
