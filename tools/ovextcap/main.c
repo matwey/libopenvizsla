@@ -5,11 +5,13 @@
  */
 
 #define _POSIX_C_SOURCE 199309L
+#include <assert.h>
 #include <getopt.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 
 #include <ov.h>
@@ -21,11 +23,59 @@
 
 #define OV_TIMESTAMP_FREQ_HZ (60000000)
 
+/* USB packet ID is 4-bit. It is send in octet alongside complemented form.
+ * The list of PIDs is available in Universal Serial Bus Specification Revision 2.0,
+ * Table 8-1. PID Types
+ * Packets here are sorted by the complemented form (high nibble).
+ */
+#define USB_PID_DATA_MDATA 0x0F
+#define USB_PID_HANDSHAKE_STALL 0x1E
+#define USB_PID_TOKEN_SETUP 0x2D
+#define USB_PID_SPECIAL_PRE_OR_ERR 0x3C
+#define USB_PID_DATA_DATA1 0x4B
+#define USB_PID_HANDSHAKE_NAK 0x5A
+#define USB_PID_TOKEN_IN 0x69
+#define USB_PID_SPECIAL_SPLIT 0x78
+#define USB_PID_DATA_DATA2 0x87
+#define USB_PID_HANDSHAKE_NYET 0x96
+#define USB_PID_TOKEN_SOF 0xA5
+#define USB_PID_SPECIAL_PING 0xB4
+#define USB_PID_DATA_DATA0 0xC3
+#define USB_PID_HANDSHAKE_ACK 0xD2
+#define USB_PID_TOKEN_OUT 0xE1
+#define USB_PID_SPECIAL_RESERVED 0xF0
+
+typedef struct _record_list record_list;
+
+/** Singly linked list of queued packets. The list length is no greater than 2. */
+struct _record_list {
+	record_list* next;    /**< Pointer to next queued record */
+	void* record;         /**< Pcap record header and packet data */
+	size_t record_length; /**< Size of record in bytes */
+};
+
 struct handler_data {
 	FILE* out;           /**< Output file. Set to NULL if capture stopped from Wireshark (broken pipe). */
 	uint32_t utc_ts;     /**< Seconds since epoch */
 	uint32_t last_ov_ts; /**< Last seen OpenVizsla timestamp. Used to detect overflows */
 	uint32_t ts_offset;  /**< Timestamp offset in 1/OV_TIMESTAMP_FREQ_HZ units */
+
+	bool filter_naks; /**< True if NAKs should be filtered */
+	bool filter_sofs; /**< True if uninteresting SOFs should be filtered */
+	enum { FILTER_STATE_DEFAULT,
+	       FILTER_STATE_SPLIT,
+	       FILTER_STATE_OUT,
+	       FILTER_STATE_EXPECT_NAK,
+	} st;               /**< NAK filter Finite State Machine state */
+	record_list* queue; /**< Queue required for NAK filtering */
+};
+
+struct pcap_packet {
+	uint32_t ts_sec;
+	uint32_t ts_nsec;
+	uint32_t incl_len;
+	uint32_t orig_len;
+	void* captured;
 };
 
 static void close_output_fifo(struct handler_data* data) {
@@ -55,6 +105,138 @@ static void flush_data(struct handler_data* data) {
 	}
 }
 
+static void* malloc_abort_on_failure(size_t size) {
+	void* allocated = malloc(size);
+	if (!allocated) {
+		abort();
+	}
+	return allocated;
+}
+
+static void queue_packet(struct pcap_packet* pkt, struct handler_data* data) {
+	const size_t record_length = (4 * sizeof(uint32_t)) + pkt->incl_len;
+	uint8_t* buffer;
+	record_list** ptr;
+
+	ptr = &data->queue;
+	while (*ptr) {
+		ptr = &((*ptr)->next);
+	}
+
+	buffer = (uint8_t*)malloc_abort_on_failure(record_length);
+	*ptr = (record_list*)malloc_abort_on_failure(sizeof(record_list));
+	(*ptr)->next = NULL;
+	(*ptr)->record = buffer;
+	(*ptr)->record_length = record_length;
+
+	memcpy(buffer, &pkt->ts_sec, sizeof(uint32_t));
+	buffer += sizeof(uint32_t);
+	memcpy(buffer, &pkt->ts_nsec, sizeof(uint32_t));
+	buffer += sizeof(uint32_t);
+	memcpy(buffer, &pkt->incl_len, sizeof(uint32_t));
+	buffer += sizeof(uint32_t);
+	memcpy(buffer, &pkt->orig_len, sizeof(uint32_t));
+	buffer += sizeof(uint32_t);
+
+	memcpy(buffer, pkt->captured, pkt->incl_len);
+}
+
+static void free_queued_packets(struct handler_data* data) {
+	record_list* ptr = data->queue;
+	while (ptr) {
+		record_list* next = ptr->next;
+		free(ptr->record);
+		free(ptr);
+		ptr = next;
+	}
+	data->queue = NULL;
+}
+
+static void forward_queued_packets(struct handler_data* data) {
+	for (record_list* ptr = data->queue; ptr; ptr = ptr->next) {
+		write_data(ptr->record, ptr->record_length, data);
+		flush_data(data);
+	}
+	free_queued_packets(data);
+}
+
+static void discard_queued_packets(struct handler_data* data) {
+	if (!data->filter_naks) {
+		/* We are only running the state machine to filter SOFs, forward all packets */
+		forward_queued_packets(data);
+	} else {
+		free_queued_packets(data);
+	}
+}
+
+static void forward_packet(struct pcap_packet* packet, struct handler_data* data) {
+	write_uint32(packet->ts_sec, data);
+	write_uint32(packet->ts_nsec, data);
+	write_uint32(packet->incl_len, data);
+	write_uint32(packet->orig_len, data);
+
+	write_data(packet->captured, packet->incl_len, data);
+	flush_data(data);
+}
+
+static void discard_packet(struct pcap_packet* packet, struct handler_data* data) {
+	if (!data->filter_naks) {
+		/* We are only running the state machine to filter SOFs, forward the packet */
+		forward_packet(packet, data);
+	}
+}
+
+static void filter_packet(struct pcap_packet* packet, struct handler_data* data) {
+	uint8_t PID;
+
+	/* Queue must be empty when in default or split state */
+	assert((data->st != FILTER_STATE_DEFAULT) || (!data->queue));
+	assert((data->st != FILTER_STATE_SPLIT) || (!data->queue));
+	assert((packet->incl_len > 0) && (packet->captured));
+
+	PID = *((uint8_t*)packet->captured);
+
+	if (PID == USB_PID_TOKEN_SOF) {
+		if (data->st == FILTER_STATE_DEFAULT) {
+			if (!data->filter_sofs) {
+				forward_packet(packet, data);
+			}
+			/* else don't do anything with this filtered uninteresting SOF */
+		} else {
+			forward_queued_packets(data);
+			forward_packet(packet, data);
+			data->st = FILTER_STATE_DEFAULT;
+		}
+	} else if (PID == USB_PID_SPECIAL_SPLIT) {
+		forward_queued_packets(data);
+		forward_packet(packet, data);
+		data->st = FILTER_STATE_SPLIT;
+	} else if (data->st == FILTER_STATE_SPLIT) {
+		/* TODO: Implement SPLIT transaction NAK filtering */
+		forward_packet(packet, data);
+		data->st = FILTER_STATE_DEFAULT;
+	} else if (PID == USB_PID_TOKEN_OUT) {
+		forward_queued_packets(data);
+		queue_packet(packet, data);
+		data->st = FILTER_STATE_OUT;
+	} else if (data->st == FILTER_STATE_OUT && ((PID == USB_PID_DATA_DATA0) || (PID == USB_PID_DATA_DATA1))) {
+		queue_packet(packet, data);
+		data->st = FILTER_STATE_EXPECT_NAK;
+	} else if ((PID == USB_PID_TOKEN_IN) || (PID == USB_PID_SPECIAL_PING)) {
+		forward_queued_packets(data);
+		queue_packet(packet, data);
+		data->st = FILTER_STATE_EXPECT_NAK;
+	} else if ((data->st == FILTER_STATE_EXPECT_NAK) && (PID == USB_PID_HANDSHAKE_NAK)) {
+		discard_queued_packets(data);
+		discard_packet(packet, data);
+		data->st = FILTER_STATE_DEFAULT;
+	} else {
+		forward_queued_packets(data);
+		forward_packet(packet, data);
+		data->st = FILTER_STATE_DEFAULT;
+	}
+}
+
 static void packet_handler(struct ov_packet* packet, void* user_data) {
 	struct handler_data* data = (struct handler_data*)user_data;
 	uint32_t nsec;
@@ -76,22 +258,22 @@ static void packet_handler(struct ov_packet* packet, void* user_data) {
 
 	/* Only write actual USB packets */
 	if (packet->size > 0) {
-		/* Write pcap record header */
-		write_uint32(data->utc_ts, data);
-		write_uint32(nsec, data);
-		/* TODO: Modify OV firmware to provide info how long was truncated packet
-		 * Currently this code lies that all packets are fully captured...
-		 */
-		write_uint32(packet->size, data);
-		write_uint32(packet->size, data);
+		struct pcap_packet pkt = {
+		    .ts_sec = data->utc_ts,
+		    .ts_nsec = nsec,
+		    /* TODO: Modify OV firmware to provide info how long was truncated packet
+		     * Currently this code lies that all packets are fully captured...
+		     */
+		    .incl_len = packet->size,
+		    .orig_len = packet->size,
+		    .captured = packet->data,
+		};
 
-		/* Write actual packet data */
-		write_data(packet->data, packet->size, data);
-		flush_data(data);
+		filter_packet(&pkt, data);
 	}
 }
 
-static int start_capture(enum ov_usb_speed speed, const char* extcap_fifo) {
+static int start_capture(enum ov_usb_speed speed, bool filter_naks, bool filter_sofs, const char* extcap_fifo) {
 	int ret;
 	struct timespec ts;
 	struct handler_data data;
@@ -140,6 +322,11 @@ static int start_capture(enum ov_usb_speed speed, const char* extcap_fifo) {
 	data.last_ov_ts = 0;
 	data.ts_offset = (ts.tv_nsec / 17) + (ts.tv_nsec / 850);
 
+	data.filter_naks = filter_naks;
+	data.filter_sofs = filter_sofs;
+	data.st = FILTER_STATE_DEFAULT;
+	data.queue = NULL;
+
 	/* Write pcap header */
 	write_uint32(PCAP_NANOSEC_MAGIC, &data);
 	write_uint16(2, &data);
@@ -169,6 +356,7 @@ static int start_capture(enum ov_usb_speed speed, const char* extcap_fifo) {
 		}
 	}
 
+	discard_queued_packets(&data);
 	close_output_fifo(&data);
 	ov_capture_stop(ov);
 	ov_free(ov);
@@ -190,14 +378,26 @@ static void print_extcap_dlts(void) {
 static void print_extcap_options(void) {
 	printf("arg {number=0}{call=--speed}"
 	       "{display=Capture speed}{tooltip=Analyzed device USB speed}"
-	       "{type=selector}\n");
+	       "{type=selector}{default=%d}\n",
+	       OV_HIGH_SPEED);
 	printf("value {arg=0}{value=%d}{display=High}\n", OV_HIGH_SPEED);
 	printf("value {arg=0}{value=%d}{display=Full}\n", OV_FULL_SPEED);
 	printf("value {arg=0}{value=%d}{display=Low}\n", OV_LOW_SPEED);
+	printf("arg {number=1}{call=--filter-nak}"
+	       "{display=Filter NAKed transactions}"
+	       "{tooltip=NAKed SPLIT transactions won't be filtered}"
+	       "{type=boolflag}{default=false}\n");
+	printf("arg {number=2}{call=--filter-sof}"
+	       "{display=Filter Full and High speed Start-of-Frame packets}"
+	       "{tooltip=Only SOFs that do not interrupt any transaction will be filtered}"
+	       "{type=boolflag}{default=false}\n");
 }
 
 int main(int argc, char** argv) {
 	enum ov_usb_speed speed = OV_HIGH_SPEED;
+
+	int filter_naks = 0;
+	int filter_sofs = 0;
 
 	int do_extcap_version = 0;
 	int do_extcap_interfaces = 0;
@@ -213,6 +413,8 @@ int main(int argc, char** argv) {
 #define ARG_EXTCAP_FIFO 1002
 
 	struct option long_options[] = {{"speed", required_argument, 0, 's'},
+	                                {"filter-nak", no_argument, &filter_naks, 1},
+	                                {"filter-sof", no_argument, &filter_sofs, 1},
 	                                /* Extcap interface. Please note that there are no short
 	                                 * options for these and the numbers are just gopt keys.
 	                                 */
@@ -283,7 +485,7 @@ int main(int argc, char** argv) {
 			return -1;
 		}
 
-		return start_capture(speed, extcap_fifo);
+		return start_capture(speed, filter_naks, filter_sofs, extcap_fifo);
 	}
 
 	return 0;
