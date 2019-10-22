@@ -1,0 +1,11 @@
+AllowShortFunctionsOnASingleLine: false
+AllowShortLoopsOnASingleLine: false
+BreakBeforeBinaryOperators: All
+BreakBeforeTernaryOperators: true
+ColumnLimit: 140
+IndentCaseLabels: true
+IndentWidth: 8
+PenaltyBreakAssignment: 100
+PointerAlignment: Left
+TabWidth: 8
+UseTab: ForIndentation
