@@ -3,7 +3,13 @@
 #include <chb.h>
 
 #include <string.h>
+#ifdef WIN32
+#include <Windows.h>
+#elif _POSIX_C_SOURCE >= 199309L
+#include <time.h>
+#else
 #include <unistd.h>
+#endif
 
 #define OV_VENDOR  0x1d50
 #define OV_PRODUCT 0x607c
@@ -20,6 +26,19 @@
 #define PORTB_INIT_BIT (1 << 5)
 #define PORTB_M0_BIT   (1 << 6)
 #define PORTB_M1_BIT   (1 << 7)
+
+static void msleep(unsigned int ms) {
+#ifdef WIN32
+	Sleep(ms);
+#elif _POSIX_C_SOURCE >= 199309L
+	struct timespec ts;
+	ts.tv_sec = ms / 1000;
+	ts.tv_nsec = (ms % 1000) * 1000000;
+	nanosleep(&ts, NULL);
+#else
+	usleep(ms * 1000);
+#endif
+}
 
 static int chb_set(struct chb* chb, uint8_t cmd, uint8_t val, uint8_t mask) {
 	const uint8_t mpsse_set_high[3] = {cmd, val, mask};
@@ -66,17 +85,43 @@ int chb_open(struct chb* chb) {
 		goto fail_ftdi_usb_open;
 	}
 
+	/*
+	 * Configure FTDI MPSSE according to AN_135 "FTDI MPSSE Basics"
+	 * 4.2 Configure FTDI Port For MPSSE Use
+	 */
+
 	if (ftdi_usb_reset(&chb->ftdi) < 0) {
 		chb->error_str = ftdi_get_error_string(&chb->ftdi);
 		goto fail_ftdi_usb_reset;
 	}
-	
+
+	/* Stick with default transfer size (4096) */
+
+	/* Disable event and error characters */
+	if (ftdi_set_event_char(&chb->ftdi, 0, 0) < 0) {
+		chb->error_str = ftdi_get_error_string(&chb->ftdi);
+		goto fail_ftdi_set_event_char;
+	}
+
+	if (ftdi_set_error_char(&chb->ftdi, 0, 0) < 0) {
+		chb->error_str = ftdi_get_error_string(&chb->ftdi);
+		goto fail_ftdi_set_error_char;
+	}
+
+	/* Stick with no timeouts */
+	/* Keep latency timeout intact */
+
+	if (ftdi_setflowctrl(&chb->ftdi, SIO_RTS_CTS_HS) < 0) {
+		chb->error_str = ftdi_get_error_string(&chb->ftdi);
+		goto fail_setflowctrl;
+	}
+
 	if (ftdi_set_bitmode(&chb->ftdi, 0, BITMODE_RESET) < 0) {
 		chb->error_str = ftdi_get_error_string(&chb->ftdi);
 		goto fail_ftdi_set_bitmode_reset;
 	}
 
-	if (ftdi_set_bitmode(&chb->ftdi, SIO_SET_BITMODE_REQUEST, BITMODE_MPSSE) < 0) {
+	if (ftdi_set_bitmode(&chb->ftdi, 0, BITMODE_MPSSE) < 0) {
 		chb->error_str = ftdi_get_error_string(&chb->ftdi);
 		goto fail_ftdi_set_bitmode_mpsse;
 	}
@@ -99,6 +144,9 @@ fail_set_low:
 fail_chb_tck_divisor:
 fail_ftdi_set_bitmode_mpsse:
 fail_ftdi_set_bitmode_reset:
+fail_setflowctrl:
+fail_ftdi_set_error_char:
+fail_ftdi_set_event_char:
 fail_ftdi_usb_reset:
 	ftdi_usb_close(&chb->ftdi);
 fail_ftdi_usb_open:
@@ -176,17 +224,23 @@ int chb_switch_program_mode(struct chb* chb) {
 	if (chb_set_high(chb, PORTB_CSI_BIT | PORTB_RDWR_BIT | PORTB_PROG_BIT | PORTB_M1_BIT) < 0)
 		return -1;
 
+	msleep(1);
+
 	// Full-chip reset PROG low
 	if (chb_set_high(chb, PORTB_CSI_BIT | PORTB_M1_BIT) < 0)
 		return -1;
+
+	msleep(1);
 
 	// Full-chip reset PROG high
 	if (chb_set_high(chb, PORTB_PROG_BIT | PORTB_M1_BIT) < 0)
 		return -1;
 
-	try = 3;
-	while (try-- && (ret = chb_get_high(chb, &status)) == 0 && (status & PORTB_DONE_BIT))
-		usleep(10000);
+	msleep(1);
+
+	for (try = 3; try && (ret = chb_get_high(chb, &status)) == 0 && (status & PORTB_DONE_BIT); --try) {
+		msleep(10);
+	}
 
 	if (ret < 0)
 		return -1;

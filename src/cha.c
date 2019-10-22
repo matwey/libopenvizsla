@@ -454,14 +454,6 @@ static void cha_loop_transfer_callback(struct libusb_transfer* transfer) {
 		case LIBUSB_TRANSFER_COMPLETED: {
 			const int done = (loop->max_count > 0 && loop->count >= loop->max_count);
 
-			if (!(done || loop->break_loop) && (ret = libusb_submit_transfer(transfer)) < 0) {
-				if (ret != LIBUSB_ERROR_INTERRUPTED) {
-					cha->error_str = libusb_error_name(ret);
-				}
-
-				loop->break_loop = 1;
-			}
-
 			if (transfer->actual_length > 2) {
 				/* Skip FTDI header */
 				if (frame_decoder_proc(
@@ -472,6 +464,14 @@ static void cha_loop_transfer_callback(struct libusb_transfer* transfer) {
 					loop->break_loop = 1;
 					cha->error_str = loop->fd.error_str;
 				};
+			}
+
+			if (!(done || loop->break_loop) && (ret = libusb_submit_transfer(transfer)) < 0) {
+				if (ret != LIBUSB_ERROR_INTERRUPTED) {
+					cha->error_str = libusb_error_name(ret);
+				}
+
+				loop->break_loop = 1;
 			}
 
 			if (done || loop->break_loop) {
