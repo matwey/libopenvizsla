@@ -6,8 +6,14 @@
 #include <string.h>
 
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-#	define be_to_host_16(x) (__builtin_bswap16(x))
-#	define be_to_host_32(x) (__builtin_bswap32(x))
+#	ifdef _MSC_VER
+#		include <stdlib.h>
+#		define be_to_host_16(x) (_byteswap_ushort(x))
+#		define be_to_host_32(x) (_byteswap_ulong(x))
+#	else
+#		define be_to_host_16(x) (__builtin_bswap16(x))
+#		define be_to_host_32(x) (__builtin_bswap32(x))
+#	endif
 #elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
 #	define be_to_host_16(x) (x)
 #	define be_to_host_32(x) (x)
