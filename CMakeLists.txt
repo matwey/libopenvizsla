@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.0)
+cmake_minimum_required (VERSION 3.1)
 # CXX language is required by GenerateExportHeader
 project(libopenvizsla LANGUAGES C CXX VERSION 0.1.0)
 
@@ -39,7 +39,6 @@ add_custom_command(OUTPUT reg_gperf.h
 
 file(GLOB_RECURSE SOURCES src/*.c)
 list(APPEND SOURCES
-	${CMAKE_CURRENT_BINARY_DIR}/ov3.fwpkg.o
 	${CMAKE_CURRENT_BINARY_DIR}/reg_gperf.h)
 list(APPEND LIBRARIES
 	${LIBFTDI_LDFLAGS}
@@ -52,6 +51,12 @@ set_target_properties(openvizsla PROPERTIES
 	SOVERSION 0)
 generate_export_header(openvizsla)
 
+if(NOT WIN32)
+	target_sources(openvizsla PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/ov3.fwpkg.o)
+else()
+	set(WIN32_RESOURCE_FILE "${CMAKE_CURRENT_SOURCE_DIR}/src/fwpkg.rc")
+endif()
+
 get_target_property(OPENVIZSLA_LIBRARY_TYPE openvizsla TYPE)
 if(NOT ${OPENVIZSLA_LIBRARY_TYPE} STREQUAL "STATIC_LIBRARY")
 	set_target_properties(openvizsla PROPERTIES
@@ -62,8 +67,17 @@ if(NOT ${OPENVIZSLA_LIBRARY_TYPE} STREQUAL "STATIC_LIBRARY")
 	set_target_properties(openvizsla_static PROPERTIES
 		COMPILE_FLAGS -DOPENVIZSLA_STATIC_DEFINE
 		ARCHIVE_OUTPUT_NAME openvizsla)
+
+	if(WIN32)
+		target_sources(openvizsla PRIVATE ${WIN32_RESOURCE_FILE})
+		target_sources(openvizsla_static PUBLIC ${WIN32_RESOURCE_FILE})
+	endif()
 else()
 	add_library(openvizsla_static ALIAS openvizsla)
+
+	if(WIN32)
+		target_sources(openvizsla PUBLIC ${WIN32_RESOURCE_FILE})
+	endif()
 endif()
 
 file(GLOB TOOLS tools/*)

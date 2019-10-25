@@ -5,7 +5,15 @@
 #include <stdint.h>
 #include <string.h>
 
-#include <arpa/inet.h>
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+#	define be_to_host_16(x) (__builtin_bswap16(x))
+#	define be_to_host_32(x) (__builtin_bswap32(x))
+#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+#	define be_to_host_16(x) (x)
+#	define be_to_host_32(x) (x)
+#else
+#	error "Unknown platform byte order"
+#endif
 
 #define PORTB_DONE_BIT (1 << 2)
 
@@ -54,7 +62,7 @@ static int bit_do_parse_field_str(struct bit* bit, uint8_t key, const char** str
 	bit->size -= sizeof(key);
 
 	memcpy(&len, bit->data, sizeof(len));
-	len = htons(len);
+	len = be_to_host_16(len);
 
 	bit->data += sizeof(len);
 	bit->size -= sizeof(len);
@@ -106,7 +114,7 @@ static int bit_do_parse_field7(struct bit* bit) {
 	bit->size -= sizeof(key);
 
 	memcpy(&len, bit->data, sizeof(len));
-	len = htonl(len);
+	len = be_to_host_32(len);
 
 	bit->bit_length = len;
 	bit->data += sizeof(len);
