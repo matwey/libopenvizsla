@@ -7,16 +7,16 @@ include(CheckSymbolExists)
 include(GNUInstallDirs)
 include(GenerateExportHeader)
 
+find_package(LibUSB1 REQUIRED)
+find_package(LibFTDI1 REQUIRED)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(CHECK REQUIRED check)
-pkg_check_modules(LIBFTDI REQUIRED libftdi1)
 pkg_check_modules(LIBZIP REQUIRED libzip>=1.0)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99 -D_XOPEN_SOURCE -D_XOPEN_SOURCE_EXTENDED ${LIBFTDI_C_FLAGS} ${LIBZIP_C_FLAGS}")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99 -D_XOPEN_SOURCE -D_XOPEN_SOURCE_EXTENDED ${LIBZIP_C_FLAGS}")
 
 include_directories ("${PROJECT_SOURCE_DIR}/include")
 include_directories ("${CMAKE_CURRENT_BINARY_DIR}")
-include_directories ("${LIBFTDI_INCLUDE_DIRS}")
 if(LIBZIP_INCLUDE_DIRS)
 include_directories ("${LIBZIP_INCLUDE_DIRS}")
 endif(LIBZIP_INCLUDE_DIRS)
@@ -41,7 +41,8 @@ file(GLOB_RECURSE SOURCES src/*.c)
 list(APPEND SOURCES
 	${CMAKE_CURRENT_BINARY_DIR}/reg_gperf.h)
 list(APPEND LIBRARIES
-	${LIBFTDI_LDFLAGS}
+	LibUSB1::usb
+	LibFTDI1::ftdi1
 	${LIBZIP_LDFLAGS})
 
 add_library(openvizsla ${SOURCES})
