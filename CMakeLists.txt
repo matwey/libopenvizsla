@@ -10,16 +10,13 @@ include(GenerateExportHeader)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(CHECK REQUIRED check)
 pkg_check_modules(LIBFTDI REQUIRED libftdi1)
-pkg_check_modules(LIBZIP REQUIRED libzip>=1.0)
+find_package(LibZip 1.0 REQUIRED)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99 -D_XOPEN_SOURCE -D_XOPEN_SOURCE_EXTENDED ${LIBFTDI_C_FLAGS} ${LIBZIP_C_FLAGS}")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99 -D_XOPEN_SOURCE -D_XOPEN_SOURCE_EXTENDED ${LIBFTDI_C_FLAGS}")
 
 include_directories ("${PROJECT_SOURCE_DIR}/include")
 include_directories ("${CMAKE_CURRENT_BINARY_DIR}")
 include_directories ("${LIBFTDI_INCLUDE_DIRS}")
-if(LIBZIP_INCLUDE_DIRS)
-include_directories ("${LIBZIP_INCLUDE_DIRS}")
-endif(LIBZIP_INCLUDE_DIRS)
 
 add_custom_command(OUTPUT ov3.fwpkg.o
 	WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
@@ -41,11 +38,10 @@ file(GLOB_RECURSE SOURCES src/*.c)
 list(APPEND SOURCES
 	${CMAKE_CURRENT_BINARY_DIR}/reg_gperf.h)
 list(APPEND LIBRARIES
-	${LIBFTDI_LDFLAGS}
-	${LIBZIP_LDFLAGS})
+	${LIBFTDI_LDFLAGS})
 
 add_library(openvizsla ${SOURCES})
-target_link_libraries(openvizsla ${LIBRARIES})
+target_link_libraries(openvizsla LibZip::zip ${LIBRARIES})
 set_target_properties(openvizsla PROPERTIES
 	VERSION 0.0.0
 	SOVERSION 0)
@@ -63,7 +59,7 @@ if(NOT ${OPENVIZSLA_LIBRARY_TYPE} STREQUAL "STATIC_LIBRARY")
 		C_VISIBILITY_PRESET hidden)
 
 	add_library(openvizsla_static STATIC EXCLUDE_FROM_ALL ${SOURCES})
-	target_link_libraries(openvizsla_static ${LIBRARIES})
+	target_link_libraries(openvizsla_static LibZip::zip ${LIBRARIES})
 	set_target_properties(openvizsla_static PROPERTIES
 		COMPILE_FLAGS -DOPENVIZSLA_STATIC_DEFINE
 		ARCHIVE_OUTPUT_NAME openvizsla)
