@@ -10,8 +10,17 @@ include(GenerateExportHeader)
 find_package(LibUSB1 REQUIRED)
 find_package(LibFTDI1 REQUIRED)
 find_package(LibZip 1.0 REQUIRED)
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(CHECK REQUIRED check)
+find_package(Check CONFIG NAMES Check check)
+if (NOT TARGET Check::check)
+	find_package(PkgConfig REQUIRED)
+
+	pkg_search_module(CHECK REQUIRED Check check)
+
+	add_library(Check::check INTERFACE IMPORTED)
+	set_target_properties(Check::check PROPERTIES
+		INTERFACE_LINK_LIBRARIES "${CHECK_LDFLAGS}"
+		INTERFACE_COMPILE_OPTIONS "${CHECK_CFLAGS}")
+endif()
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99 -D_XOPEN_SOURCE -D_XOPEN_SOURCE_EXTENDED")
 
@@ -93,10 +102,7 @@ foreach(test_source IN ITEMS ${TESTS})
 	string(REPLACE / _ test_name ${test_name})
 	string(REPLACE .c "" test_name ${test_name})
 	add_executable(${test_name} ${test_source})
-	if(CHECK_INCLUDE_DIRS)
-		target_include_directories(${test_name} PRIVATE ${CHECK_INCLUDE_DIRS})
-	endif(CHECK_INCLUDE_DIRS)
-	target_link_libraries(${test_name} ${CHECK_LDFLAGS} openvizsla_static)
+	target_link_libraries(${test_name} Check::check openvizsla_static)
 	set_target_properties(${test_name} PROPERTIES COMPILE_FLAGS -DPROJECT_ROOT='"${PROJECT_SOURCE_DIR}"')
 	add_test(${test_name} ${test_name})
 endforeach(test_source)
