@@ -9,17 +9,14 @@ include(GenerateExportHeader)
 
 find_package(LibUSB1 REQUIRED)
 find_package(LibFTDI1 REQUIRED)
+find_package(LibZip 1.0 REQUIRED)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(CHECK REQUIRED check)
-pkg_check_modules(LIBZIP REQUIRED libzip>=1.0)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99 -D_XOPEN_SOURCE -D_XOPEN_SOURCE_EXTENDED ${LIBZIP_C_FLAGS}")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99 -D_XOPEN_SOURCE -D_XOPEN_SOURCE_EXTENDED")
 
 include_directories ("${PROJECT_SOURCE_DIR}/include")
 include_directories ("${CMAKE_CURRENT_BINARY_DIR}")
-if(LIBZIP_INCLUDE_DIRS)
-include_directories ("${LIBZIP_INCLUDE_DIRS}")
-endif(LIBZIP_INCLUDE_DIRS)
 
 add_custom_command(OUTPUT ov3.fwpkg.o
 	WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
@@ -43,7 +40,7 @@ list(APPEND SOURCES
 list(APPEND LIBRARIES
 	LibUSB1::usb
 	LibFTDI1::ftdi1
-	${LIBZIP_LDFLAGS})
+	LibZip::zip)
 
 add_library(openvizsla ${SOURCES})
 target_link_libraries(openvizsla ${LIBRARIES})
@@ -64,7 +61,7 @@ if(NOT ${OPENVIZSLA_LIBRARY_TYPE} STREQUAL "STATIC_LIBRARY")
 		C_VISIBILITY_PRESET hidden)
 
 	add_library(openvizsla_static STATIC EXCLUDE_FROM_ALL ${SOURCES})
-	target_link_libraries(openvizsla_static ${LIBRARIES})
+	target_link_libraries(openvizsla_static LibZip::zip ${LIBRARIES})
 	set_target_properties(openvizsla_static PROPERTIES
 		COMPILE_FLAGS -DOPENVIZSLA_STATIC_DEFINE
 		ARCHIVE_OUTPUT_NAME openvizsla)
