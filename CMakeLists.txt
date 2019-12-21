@@ -3,6 +3,8 @@ cmake_minimum_required (VERSION 3.1)
 project(libopenvizsla LANGUAGES C CXX VERSION 0.1.0)
 
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
+set(CMAKE_C_STANDARD 99)
+
 include(CheckSymbolExists)
 include(GNUInstallDirs)
 include(GenerateExportHeader)
@@ -22,7 +24,7 @@ if (NOT TARGET Check::check)
 		INTERFACE_COMPILE_OPTIONS "${CHECK_CFLAGS}")
 endif()
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99 -D_XOPEN_SOURCE -D_XOPEN_SOURCE_EXTENDED")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_XOPEN_SOURCE -D_XOPEN_SOURCE_EXTENDED")
 
 include_directories ("${PROJECT_SOURCE_DIR}/include")
 include_directories ("${CMAKE_CURRENT_BINARY_DIR}")
