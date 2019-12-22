@@ -5,6 +5,7 @@ project(libopenvizsla LANGUAGES C CXX VERSION 0.1.0)
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 set(CMAKE_C_STANDARD 99)
 
+include(CheckSymbolExists)
 include(GNUInstallDirs)
 include(GenerateExportHeader)
 
@@ -88,12 +89,28 @@ else()
 	endif()
 endif()
 
+check_symbol_exists(getopt_long "getopt.h" HAVE_GETOPT)
+if (NOT HAVE_GETOPT)
+	find_path(GETOPT_INCLUDE_DIRS getopt.h)
+	find_library(GETOPT_LIBRARIES getopt)
+
+	add_library(getopt::getopt INTERFACE IMPORTED)
+	set_target_properties(getopt::getopt PROPERTIES
+		INTERFACE_INCLUDE_DIRECTORIES "${GETOPT_INCLUDE_DIRS}"
+		INTERFACE_LINK_LIBRARIES "${GETOPT_LIBRARIES}")
+endif()
+
 file(GLOB TOOLS tools/*)
 foreach(tool_target IN ITEMS ${TOOLS})
-        file(GLOB_RECURSE SOURCES ${tool_target}/*.c)
-        get_filename_component(tool_name ${tool_target} NAME)
-        add_executable(${tool_name} ${SOURCES})
-        target_link_libraries(${tool_name} openvizsla)
+	file(GLOB_RECURSE SOURCES ${tool_target}/*.c)
+	get_filename_component(tool_name ${tool_target} NAME)
+	add_executable(${tool_name} ${SOURCES})
+	list(APPEND _libraries openvizsla)
+	if (TARGET getopt::getopt)
+		list(APPEND _libraries getopt::getopt)
+	endif()
+	target_link_libraries(${tool_name} ${_libraries})
+	unset(_libraries)
 endforeach(tool_target)
 
 enable_testing()
