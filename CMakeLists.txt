@@ -3,6 +3,8 @@ cmake_minimum_required (VERSION 3.1)
 project(libopenvizsla LANGUAGES C CXX VERSION 0.1.0)
 
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
+set(CMAKE_C_STANDARD 99)
+
 include(CheckSymbolExists)
 include(GNUInstallDirs)
 include(GenerateExportHeader)
@@ -21,8 +23,6 @@ if (NOT TARGET Check::check)
 		INTERFACE_LINK_LIBRARIES "${CHECK_LDFLAGS}"
 		INTERFACE_COMPILE_OPTIONS "${CHECK_CFLAGS}")
 endif()
-
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99 -D_XOPEN_SOURCE -D_XOPEN_SOURCE_EXTENDED")
 
 include_directories ("${PROJECT_SOURCE_DIR}/include")
 include_directories ("${CMAKE_CURRENT_BINARY_DIR}")
@@ -56,6 +56,8 @@ target_link_libraries(openvizsla ${LIBRARIES})
 set_target_properties(openvizsla PROPERTIES
 	VERSION 0.0.0
 	SOVERSION 0)
+target_compile_definitions(openvizsla PUBLIC "_XOPEN_SOURCE;_XOPEN_SOURCE_EXTENDED")
+
 generate_export_header(openvizsla)
 
 if(NOT WIN32)
@@ -72,8 +74,8 @@ if(NOT ${OPENVIZSLA_LIBRARY_TYPE} STREQUAL "STATIC_LIBRARY")
 	add_library(openvizsla_static STATIC EXCLUDE_FROM_ALL ${SOURCES})
 	target_link_libraries(openvizsla_static LibZip::zip ${LIBRARIES})
 	set_target_properties(openvizsla_static PROPERTIES
-		COMPILE_FLAGS -DOPENVIZSLA_STATIC_DEFINE
 		ARCHIVE_OUTPUT_NAME openvizsla)
+	target_compile_definitions(openvizsla_static PUBLIC "OPENVIZSLA_STATIC_DEFINE;_XOPEN_SOURCE;_XOPEN_SOURCE_EXTENDED")
 
 	if(WIN32)
 		target_sources(openvizsla PRIVATE ${WIN32_RESOURCE_FILE})
@@ -103,7 +105,7 @@ foreach(test_source IN ITEMS ${TESTS})
 	string(REPLACE .c "" test_name ${test_name})
 	add_executable(${test_name} ${test_source})
 	target_link_libraries(${test_name} Check::check openvizsla_static)
-	set_target_properties(${test_name} PROPERTIES COMPILE_FLAGS -DPROJECT_ROOT='"${PROJECT_SOURCE_DIR}"')
+	target_compile_definitions(${test_name} PRIVATE PROJECT_ROOT="${PROJECT_SOURCE_DIR}")
 	add_test(${test_name} ${test_name})
 endforeach(test_source)
 
