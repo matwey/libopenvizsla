@@ -1,5 +1,6 @@
 image:
   - Visual Studio 2015
+  - Ubuntu
 
 configuration:
   - Debug
@@ -11,6 +12,18 @@ environment:
       GENERATOR: MSYS Makefiles
     - MSYSTEM: MINGW64
       GENERATOR: MSYS Makefiles
+    - GENERATOR: Unix Makefiles
+
+matrix:
+  exclude:
+    - image: Ubuntu
+      MSYSTEM: MINGW32
+      GENERATOR: MSYS Makefiles
+    - image: Ubuntu
+      MSYSTEM: MINGW64
+      GENERATOR: MSYS Makefiles
+    - image: Visual Studio 2015
+      GENERATOR: Unix Makefiles
 
 install:
   - C:\msys64\usr\bin\bash --login -c "pacman -Su --noconfirm mingw-w64-{i686,x86_64}-{check,libftdi,gperf,libzip,cmake}"
@@ -23,3 +36,20 @@ build_script:
 
 test_script:
   - C:\msys64\usr\bin\bash --login -c "cd '%APPVEYOR_BUILD_FOLDER%'; cd build; ctest --output-on-failure"
+
+for:
+-
+  matrix:
+    only:
+      - image: Ubuntu
+  install:
+    - sudo apt-get update
+    - sudo apt-get install -y cmake check gperf libftdi1-dev libzip-dev
+  before_build:
+    - mkdir build
+    - cd build
+    - cmake -G"${GENERATOR}" -DCMAKE_BUILD_TYPE=${CONFIGURATION} ..
+  build_script:
+    - cmake --build . --config ${CONFIGURATION} -- VERBOSE=1
+  test_script:
+    - ctest --output-on-failure
