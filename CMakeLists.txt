@@ -5,7 +5,6 @@ project(libopenvizsla LANGUAGES C CXX VERSION 0.1.0)
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 set(CMAKE_C_STANDARD 99)
 
-include(CheckSymbolExists)
 include(GNUInstallDirs)
 include(GenerateExportHeader)
 
