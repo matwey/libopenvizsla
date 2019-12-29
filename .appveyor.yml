@@ -1,5 +1,6 @@
 image:
   - Visual Studio 2015
+  - Ubuntu
 
 configuration:
   - Debug
@@ -7,19 +8,83 @@ configuration:
 
 environment:
   matrix:
-    - MSYSTEM: MINGW32
+    - GENERATOR: MSYS Makefiles
+      MSYSTEM: MINGW32
+    - GENERATOR: MSYS Makefiles
+      MSYSTEM: MINGW64
+    - GENERATOR: Unix Makefiles
+    - GENERATOR: Visual Studio 14
+      VCPKG_TARGET_TRIPLET: x86-windows
+    - GENERATOR: Visual Studio 14 Win64
+      VCPKG_TARGET_TRIPLET: x64-windows
+
+matrix:
+  exclude:
+    - image: Ubuntu
       GENERATOR: MSYS Makefiles
-    - MSYSTEM: MINGW64
+      MSYSTEM: MINGW32
+    - image: Ubuntu
       GENERATOR: MSYS Makefiles
+      MSYSTEM: MINGW64
+    - image: Ubuntu
+      GENERATOR: Visual Studio 14
+      VCPKG_TARGET_TRIPLET: x86-windows
+    - image: Ubuntu
+      GENERATOR: Visual Studio 14 Win64
+      VCPKG_TARGET_TRIPLET: x64-windows
+    - image: Visual Studio 2015
+      GENERATOR: Unix Makefiles
+
+for:
+-
+  matrix:
+    only:
+      - GENERATOR: MSYS Makefiles
+  install:
+    - C:\msys64\usr\bin\bash --login -c "pacman -Su --noconfirm mingw-w64-{i686,x86_64}-{check,libftdi,gperf,libzip,cmake}"
+  before_build:
+    - C:\msys64\usr\bin\bash --login -c "cd '%APPVEYOR_BUILD_FOLDER%'; mkdir build; cd build; cmake -G'%GENERATOR%' -DCMAKE_BUILD_TYPE=%CONFIGURATION% -DBUILD_SHARED_LIBS:BOOL=on .."
+  build_script:
+    - C:\msys64\usr\bin\bash --login -c "cd '%APPVEYOR_BUILD_FOLDER%'; cd build; cmake --build . --verbose --config %CONFIGURATION%"
+  test_script:
+    - C:\msys64\usr\bin\bash --login -c "cd '%APPVEYOR_BUILD_FOLDER%'; cd build; ctest --output-on-failure"
+-
+  matrix:
+    only:
+      - image: Ubuntu
+  install:
+    - sudo apt-get update
+    - sudo apt-get install -y cmake check gperf libftdi1-dev libzip-dev
+  before_build:
+    - mkdir build
+    - cd build
+    - cmake -G"${GENERATOR}" -DCMAKE_BUILD_TYPE=${CONFIGURATION} ..
+  build_script:
+    - cmake --build . --config ${CONFIGURATION} -- VERBOSE=1
+  test_script:
+    - ctest --output-on-failure
 
 install:
-  - C:\msys64\usr\bin\bash --login -c "pacman -Su --noconfirm mingw-w64-{i686,x86_64}-{check,libftdi,gperf,libzip,cmake}"
-
+  - cd c:\tools\vcpkg
+  - git pull -q
+  - vcpkg --triplet %VCPKG_TARGET_TRIPLET% install check libftdi1 libusb libzip getopt-win32
+  - ps: |
+      $destinationPath = 'c:\tools\vcpkg\installed\' + $env:VCPKG_TARGET_TRIPLET + '\tools\'
+      $gperfFilename = Join-Path -Path $destinationPath -ChildPath 'gperf.exe'
+      $archiveFilename = 'gperf-3.0.1-bin.zip'
+      if (-not (Test-Path -Path $gperfFilename -PathType leaf)) {
+        Start-FileDownload 'https://sourceforge.net/projects/gnuwin32/files/gperf/3.0.1/gperf-3.0.1-bin.zip/download' -FileName $archiveFilename
+        Expand-Archive -Path $archiveFilename -DestinationPath '.'
+        New-Item -Type dir $destinationPath -ErrorAction SilentlyContinue
+        Copy-Item '.\bin\gperf.exe' -Destination $gperfFilename
+      }
+  - cd %APPVEYOR_BUILD_FOLDER%
 before_build:
-  - C:\msys64\usr\bin\bash --login -c "cd '%APPVEYOR_BUILD_FOLDER%'; mkdir build; cd build; cmake -G'%GENERATOR%' -DCMAKE_BUILD_TYPE=%CONFIGURATION% -DBUILD_SHARED_LIBS:BOOL=on .."
-
+  - mkdir build
+  - cd build
+  - cmake -G"%GENERATOR%" -DCMAKE_TOOLCHAIN_FILE=c:/tools/vcpkg/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=%VCPKG_TARGET_TRIPLET% -DCMAKE_BUILD_TYPE=%CONFIGURATION% ..
 build_script:
-  - C:\msys64\usr\bin\bash --login -c "cd '%APPVEYOR_BUILD_FOLDER%'; cd build; cmake --build . --verbose --config %CONFIGURATION%"
-
+  - cmake --build . --config %CONFIGURATION%
 test_script:
-  - C:\msys64\usr\bin\bash --login -c "cd '%APPVEYOR_BUILD_FOLDER%'; cd build; ctest --output-on-failure"
+  - ctest --output-on-failure
+cache: c:\tools\vcpkg\installed

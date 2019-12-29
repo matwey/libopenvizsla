@@ -444,7 +444,7 @@ static void cha_loop_free_transfer(struct libusb_transfer* transfer) {
 	loop->complete = 1;
 }
 
-static void cha_loop_transfer_callback(struct libusb_transfer* transfer) {
+static void LIBUSB_CALL cha_loop_transfer_callback(struct libusb_transfer* transfer) {
 	struct cha_loop* loop = (struct cha_loop*)transfer->user_data;
 	struct cha* cha = loop->cha;
 
