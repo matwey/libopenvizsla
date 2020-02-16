@@ -6,6 +6,7 @@
 
 #define _POSIX_C_SOURCE 199309L
 #include <assert.h>
+#include <fcntl.h>
 #include <getopt.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -13,6 +14,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#ifdef WIN32
+#include <io.h>
+#include <sys/stat.h>
+#else
+#include <unistd.h>
+#endif
 
 #include <ov.h>
 
@@ -56,6 +63,7 @@ struct _record_list {
 
 struct handler_data {
 	FILE* out;           /**< Output file. Set to NULL if capture stopped from Wireshark (broken pipe). */
+	FILE* debug;         /**< Debug output file. NULL if not writing to debug file. */
 	uint32_t utc_ts;     /**< Seconds since epoch */
 	uint32_t last_ov_ts; /**< Last seen OpenVizsla timestamp. Used to detect overflows */
 	uint32_t ts_offset;  /**< Timestamp offset in 1/OV_TIMESTAMP_FREQ_HZ units */
@@ -78,31 +86,52 @@ struct pcap_packet {
 	void* captured;
 };
 
-static void close_output_fifo(struct handler_data* data) {
-	if (data->out) {
-		fclose(data->out);
-		data->out = NULL;
+static void close_file(FILE** out) {
+	if (*out) {
+		fclose(*out);
+		*out = NULL;
 	}
 }
 
-static void write_data(const void* ptr, size_t size, struct handler_data* data) {
-	if ((data->out) && (fwrite(ptr, size, 1, data->out) != 1)) {
-		close_output_fifo(data);
+static void write_data(const void* ptr, size_t size, FILE** out) {
+	if ((*out) && (fwrite(ptr, size, 1, *out) != 1)) {
+		close_file(out);
 	}
 }
 
-static void write_uint16(uint16_t value, struct handler_data* data) {
-	write_data(&value, sizeof(value), data);
+static void write_uint16(uint16_t value, FILE** out) {
+	write_data(&value, sizeof(value), out);
 }
 
-static void write_uint32(uint32_t value, struct handler_data* data) {
-	write_data(&value, sizeof(value), data);
+static void write_uint32(uint32_t value, FILE** out) {
+	write_data(&value, sizeof(value), out);
 }
 
-static void flush_data(struct handler_data* data) {
-	if ((data->out) && (fflush(data->out))) {
-		close_output_fifo(data);
+static void flush_data(FILE** out) {
+	if ((*out) && (fflush(*out))) {
+		close_file(out);
 	}
+}
+
+static void write_pcap_header(FILE** out) {
+	write_uint32(PCAP_NANOSEC_MAGIC, out);
+	write_uint16(2, out);
+	write_uint16(4, out);
+	write_uint32(0, out);
+	write_uint32(0, out);
+	write_uint32(65535, out);
+	write_uint32(LINKTYPE_USBLL, out);
+	flush_data(out);
+}
+
+static void write_packet(struct pcap_packet* packet, FILE** out) {
+	write_uint32(packet->ts_sec, out);
+	write_uint32(packet->ts_nsec, out);
+	write_uint32(packet->incl_len, out);
+	write_uint32(packet->orig_len, out);
+
+	write_data(packet->captured, packet->incl_len, out);
+	flush_data(out);
 }
 
 static void* malloc_abort_on_failure(size_t size) {
@@ -154,8 +183,8 @@ static void free_queued_packets(struct handler_data* data) {
 
 static void forward_queued_packets(struct handler_data* data) {
 	for (record_list* ptr = data->queue; ptr; ptr = ptr->next) {
-		write_data(ptr->record, ptr->record_length, data);
-		flush_data(data);
+		write_data(ptr->record, ptr->record_length, &data->out);
+		flush_data(&data->out);
 	}
 	free_queued_packets(data);
 }
@@ -170,13 +199,7 @@ static void discard_queued_packets(struct handler_data* data) {
 }
 
 static void forward_packet(struct pcap_packet* packet, struct handler_data* data) {
-	write_uint32(packet->ts_sec, data);
-	write_uint32(packet->ts_nsec, data);
-	write_uint32(packet->incl_len, data);
-	write_uint32(packet->orig_len, data);
-
-	write_data(packet->captured, packet->incl_len, data);
-	flush_data(data);
+	write_packet(packet, &data->out);
 }
 
 static void discard_packet(struct pcap_packet* packet, struct handler_data* data) {
@@ -269,11 +292,12 @@ static void packet_handler(struct ov_packet* packet, void* user_data) {
 		    .captured = packet->data,
 		};
 
+		write_packet(&pkt, &data->debug);
 		filter_packet(&pkt, data);
 	}
 }
 
-static int start_capture(enum ov_usb_speed speed, bool filter_naks, bool filter_sofs, const char* extcap_fifo) {
+static int start_capture(enum ov_usb_speed speed, bool filter_naks, bool filter_sofs, const char* extcap_fifo, FILE* debug_pcap) {
 	int ret;
 	struct timespec ts;
 	struct handler_data data;
@@ -312,6 +336,8 @@ static int start_capture(enum ov_usb_speed speed, bool filter_naks, bool filter_
 		ov_free(ov);
 		return 1;
 	}
+	data.debug = debug_pcap;
+
 	/* Assume OpenVizsla timestamp value 0 is the current realtime */
 #ifdef _MSC_VER
 	timespec_get(&ts, TIME_UTC);
@@ -328,20 +354,15 @@ static int start_capture(enum ov_usb_speed speed, bool filter_naks, bool filter_
 	data.queue = NULL;
 
 	/* Write pcap header */
-	write_uint32(PCAP_NANOSEC_MAGIC, &data);
-	write_uint16(2, &data);
-	write_uint16(4, &data);
-	write_uint32(0, &data);
-	write_uint32(0, &data);
-	write_uint32(65535, &data);
-	write_uint32(LINKTYPE_USBLL, &data);
-	flush_data(&data);
+	write_pcap_header(&data.out);
+	write_pcap_header(&data.debug);
 
 	ret = ov_capture_start(ov, &p.packet, sizeof(p), &packet_handler, &data);
 	if (ret < 0) {
 		fprintf(stderr, "%s: %s\n", "Cannot start capture", ov_get_error_string(ov));
 
-		close_output_fifo(&data);
+		close_file(&data.out);
+		close_file(&data.debug);
 		ov_free(ov);
 		return 1;
 	}
@@ -357,7 +378,8 @@ static int start_capture(enum ov_usb_speed speed, bool filter_naks, bool filter_
 	}
 
 	discard_queued_packets(&data);
-	close_output_fifo(&data);
+	close_file(&data.out);
+	close_file(&data.debug);
 	ov_capture_stop(ov);
 	ov_free(ov);
 	return ret;
@@ -378,7 +400,7 @@ static void print_extcap_dlts(void) {
 static void print_extcap_options(void) {
 	printf("arg {number=0}{call=--speed}"
 	       "{display=Capture speed}{tooltip=Analyzed device USB speed}"
-	       "{type=selector}{default=%d}\n",
+	       "{type=selector}{default=%d}{group=Capture}\n",
 	       OV_HIGH_SPEED);
 	printf("value {arg=0}{value=%d}{display=High}\n", OV_HIGH_SPEED);
 	printf("value {arg=0}{value=%d}{display=Full}\n", OV_FULL_SPEED);
@@ -386,11 +408,17 @@ static void print_extcap_options(void) {
 	printf("arg {number=1}{call=--filter-nak}"
 	       "{display=Filter NAKed transactions}"
 	       "{tooltip=NAKed SPLIT transactions won't be filtered}"
-	       "{type=boolflag}{default=false}\n");
+	       "{type=boolflag}{default=false}{group=Capture}\n");
 	printf("arg {number=2}{call=--filter-sof}"
 	       "{display=Filter Full and High speed Start-of-Frame packets}"
 	       "{tooltip=Only SOFs that do not interrupt any transaction will be filtered}"
-	       "{type=boolflag}{default=false}\n");
+	       "{type=boolflag}{default=false}{group=Capture}\n");
+
+	printf("arg {number=800}{call=--overwrite-debug-pcap}{display=Overwrite .pcap file if it exists}{type=boolflag}"
+	       "{required=false}{default=false}{group=Debug}\n");
+	printf("arg {number=801}{call=--debug-pcap}{display=Save all packets to .pcap file}{type=fileselect}{fileext=pcap (*.pcap)}"
+	       "{tooltip=Set a file where all incoming packets are written (unfiltered)}"
+	       "{required=false}{group=Debug}\n");
 }
 
 int main(int argc, char** argv) {
@@ -398,6 +426,9 @@ int main(int argc, char** argv) {
 
 	int filter_naks = 0;
 	int filter_sofs = 0;
+	int overwrite_debug_pcap = 0;
+	const char* debug_pcap_filename = NULL;
+	FILE* debug_pcap = NULL;
 
 	int do_extcap_version = 0;
 	int do_extcap_interfaces = 0;
@@ -408,6 +439,7 @@ int main(int argc, char** argv) {
 	const char* extcap_interface = NULL;
 	const char* extcap_fifo = NULL;
 
+#define ARG_DEBUG_PCAP 801
 #define ARG_EXTCAP_VERSION 1000
 #define ARG_EXTCAP_INTERFACE 1001
 #define ARG_EXTCAP_FIFO 1002
@@ -415,6 +447,8 @@ int main(int argc, char** argv) {
 	struct option long_options[] = {{"speed", required_argument, 0, 's'},
 	                                {"filter-nak", no_argument, &filter_naks, 1},
 	                                {"filter-sof", no_argument, &filter_sofs, 1},
+	                                {"overwrite-debug-pcap", no_argument, &overwrite_debug_pcap, 1},
+	                                {"debug-pcap", required_argument, 0, ARG_DEBUG_PCAP},
 	                                /* Extcap interface. Please note that there are no short
 	                                 * options for these and the numbers are just gopt keys.
 	                                 */
@@ -446,6 +480,9 @@ int main(int argc, char** argv) {
 						return -1;
 				}
 				break;
+			case ARG_DEBUG_PCAP:
+				debug_pcap_filename = optarg;
+				break;
 			case ARG_EXTCAP_VERSION:
 				do_extcap_version = 1;
 				wireshark_version = optarg;
@@ -458,7 +495,7 @@ int main(int argc, char** argv) {
 				break;
 
 			default:
-				printf("getopt_long() returned character code 0x%X. Please report.\n", c);
+				fprintf(stderr, "getopt_long() returned character code 0x%X. Please report.\n", c);
 				return -1;
 		}
 	}
@@ -485,7 +522,26 @@ int main(int argc, char** argv) {
 			return -1;
 		}
 
-		return start_capture(speed, filter_naks, filter_sofs, extcap_fifo);
+		if (debug_pcap_filename) {
+			if (overwrite_debug_pcap) {
+				debug_pcap = fopen(debug_pcap_filename, "wb");
+			} else {
+				int fd = open(debug_pcap_filename,
+#ifdef WIN32
+				              O_CREAT | O_EXCL | O_WRONLY | O_BINARY, S_IREAD | S_IWRITE);
+#else
+				              O_CREAT | O_EXCL | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
+#endif
+				if (-1 != fd) {
+					debug_pcap = fdopen(fd, "wb");
+				}
+			}
+			if (!debug_pcap) {
+				fprintf(stderr, "Cannot create debug pcap file!\n");
+				return -1;
+			}
+		}
+		return start_capture(speed, filter_naks, filter_sofs, extcap_fifo, debug_pcap);
 	}
 
 	return 0;
