@@ -1,24 +1,11 @@
 /* SPDX-License-Identifier: LGPL-3.0-or-later */
 
 #include <fwpkg.h>
+#include <ov3_fwpkg.h>
 
 #include <stdlib.h>
 #include <string.h>
 
-#if defined(_WIN32) || defined(__CYGWIN__)
-#include <Windows.h>
-
-/* It is ok to have NULL hinstance in case of static linkage */
-static HINSTANCE hinstance = NULL;
-
-BOOL DllMain(HINSTANCE hinstDll, DWORD fdwReason, LPVOID lpvReserved) {
-	hinstance = hinstDll;
-	return TRUE;
-}
-#else
-extern const char _binary_ov3_fwpkg_start[];
-extern const char _binary_ov3_fwpkg_end[];
-#endif
 
 static int fwpkg_read_file(struct fwpkg* fwpkg, void* buf, size_t* size, zip_uint64_t index) {
 	struct zip_file* file = zip_fopen_index(fwpkg->pkg, index, 0);
@@ -125,37 +112,9 @@ int fwpkg_init_from_file(struct fwpkg* fwpkg, const char* filename) {
 	return fwpkg_locate_files(fwpkg);
 }
 
-#if defined(_WIN32) || defined(__CYGWIN__)
 int fwpkg_init_from_preload(struct fwpkg* fwpkg) {
-	HGLOBAL res_handle = NULL;
-	HRSRC res;
-	void* data;
-	DWORD size;
-
-	res = FindResource(hinstance, MAKEINTRESOURCE(OV_FWPKG_RESOURCE), RT_RCDATA);
-	if (!res) {
-		fwpkg->error_str = "Cannot find OV_FWPKG_RESOURCE resource";
-		return -1;
-	}
-
-	res_handle = LoadResource(hinstance, res);
-	if (!res_handle) {
-		fwpkg->error_str = "Cannot load OV_FWPKG_RESOURCE resource";
-		return -1;
-	}
-
-	data = LockResource(res_handle);
-	size = SizeofResource(hinstance, res);
-
-	return fwpkg_init_from_buffer(fwpkg, data, size);
+	return fwpkg_init_from_buffer(fwpkg, ov3_fwpkg, ov3_fwpkg_len);
 }
-#else
-int fwpkg_init_from_preload(struct fwpkg* fwpkg) {
-	return fwpkg_init_from_buffer(fwpkg,
-		(const void*)_binary_ov3_fwpkg_start,
-		(const void*)_binary_ov3_fwpkg_end - (const void*)_binary_ov3_fwpkg_start);
-}
-#endif
 
 void fwpkg_destroy(struct fwpkg* fwpkg) {
 	zip_discard(fwpkg->pkg);

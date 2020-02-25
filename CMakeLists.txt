@@ -27,10 +27,9 @@ endif()
 include_directories ("${PROJECT_SOURCE_DIR}/include")
 include_directories ("${CMAKE_CURRENT_BINARY_DIR}")
 
-add_custom_command(OUTPUT ov3.fwpkg.o
+add_custom_command(OUTPUT ov3.fwpkg.h
 	WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-	COMMAND ld -r -b binary -o ${CMAKE_CURRENT_BINARY_DIR}/ov3.fwpkg.o ov3.fwpkg
-	COMMAND objcopy --rename-section .data=.rodata,contents,readonly ${CMAKE_CURRENT_BINARY_DIR}/ov3.fwpkg.o ${CMAKE_CURRENT_BINARY_DIR}/ov3.fwpkg.o
+	COMMAND xxd -i ov3.fwpkg > ${CMAKE_CURRENT_BINARY_DIR}/ov3_fwpkg.h
 	MAIN_DEPENDENCY ov3.fwpkg)
 
 find_program(GPERF NAMES gperf)
@@ -60,11 +59,6 @@ target_compile_definitions(openvizsla PUBLIC "_XOPEN_SOURCE;_XOPEN_SOURCE_EXTEND
 
 generate_export_header(openvizsla)
 
-if(NOT WIN32)
-	target_sources(openvizsla PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/ov3.fwpkg.o)
-else()
-	set(WIN32_RESOURCE_FILE "${CMAKE_CURRENT_SOURCE_DIR}/src/fwpkg.rc")
-endif()
 
 get_target_property(OPENVIZSLA_LIBRARY_TYPE openvizsla TYPE)
 if(NOT ${OPENVIZSLA_LIBRARY_TYPE} STREQUAL "STATIC_LIBRARY")
@@ -77,18 +71,8 @@ if(NOT ${OPENVIZSLA_LIBRARY_TYPE} STREQUAL "STATIC_LIBRARY")
 		ARCHIVE_OUTPUT_NAME openvizsla)
 	target_compile_definitions(openvizsla_static PUBLIC "OPENVIZSLA_STATIC_DEFINE;_XOPEN_SOURCE;_XOPEN_SOURCE_EXTENDED")
 
-	if(NOT WIN32)
-		target_sources(openvizsla_static PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/ov3.fwpkg.o)
-	else()
-		target_sources(openvizsla PRIVATE ${WIN32_RESOURCE_FILE})
-		target_sources(openvizsla_static PUBLIC ${WIN32_RESOURCE_FILE})
-	endif()
 else()
 	add_library(openvizsla_static ALIAS openvizsla)
-
-	if(WIN32)
-		target_sources(openvizsla PUBLIC ${WIN32_RESOURCE_FILE})
-	endif()
 endif()
 
 check_symbol_exists(getopt_long "getopt.h" HAVE_GETOPT)
