@@ -15,6 +15,9 @@ BOOL DllMain(HINSTANCE hinstDll, DWORD fdwReason, LPVOID lpvReserved) {
 	hinstance = hinstDll;
 	return TRUE;
 }
+#elif __APPLE__
+#include <mach-o/getsect.h>
+#include <mach-o/ldsyms.h>
 #else
 extern const char _binary_ov3_fwpkg_start[];
 extern const char _binary_ov3_fwpkg_end[];
@@ -149,6 +152,21 @@ int fwpkg_init_from_preload(struct fwpkg* fwpkg) {
 
 	return fwpkg_init_from_buffer(fwpkg, data, size);
 }
+#elif __APPLE__
+#ifdef OPENVIZSLA_STATIC_DEFINE
+#define MH_HEADER _mh_execute_header
+#else
+#define MH_HEADER _mh_dylib_header
+#endif
+int fwpkg_init_from_preload(struct fwpkg* fwpkg) {
+	uint8_t* data = NULL;
+	unsigned long size = 0;
+
+	data = getsectiondata(&MH_HEADER, "__DATA", "__ov3_fwpkg", &size);
+
+	return fwpkg_init_from_buffer(fwpkg, data, size);
+}
+#undef MH_HEADER
 #else
 int fwpkg_init_from_preload(struct fwpkg* fwpkg) {
 	return fwpkg_init_from_buffer(fwpkg,
