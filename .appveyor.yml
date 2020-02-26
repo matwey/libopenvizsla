@@ -1,6 +1,7 @@
 image:
   - Visual Studio 2015
   - Ubuntu
+  - macos
 
 configuration:
   - Debug
@@ -23,13 +24,25 @@ matrix:
     - image: Ubuntu
       GENERATOR: MSYS Makefiles
       MSYSTEM: MINGW32
+    - image: macos
+      GENERATOR: MSYS Makefiles
+      MSYSTEM: MINGW32
     - image: Ubuntu
+      GENERATOR: MSYS Makefiles
+      MSYSTEM: MINGW64
+    - image: macos
       GENERATOR: MSYS Makefiles
       MSYSTEM: MINGW64
     - image: Ubuntu
       GENERATOR: Visual Studio 14
       VCPKG_TARGET_TRIPLET: x86-windows
+    - image: macos
+      GENERATOR: Visual Studio 14
+      VCPKG_TARGET_TRIPLET: x86-windows
     - image: Ubuntu
+      GENERATOR: Visual Studio 14 Win64
+      VCPKG_TARGET_TRIPLET: x64-windows
+    - image: macos
       GENERATOR: Visual Studio 14 Win64
       VCPKG_TARGET_TRIPLET: x64-windows
     - image: Visual Studio 2015
@@ -63,6 +76,23 @@ for:
     - cmake --build . --config ${CONFIGURATION} -- VERBOSE=1
   test_script:
     - ctest --output-on-failure
+-
+  matrix:
+    only:
+      - image: macos
+  install:
+    - brew install check libftdi libusb libzip
+  before_build:
+    - mkdir build
+    - cd build
+    - cmake -G"${GENERATOR}" -DCMAKE_BUILD_TYPE=${CONFIGURATION} -DBUILD_SHARED_LIBS:BOOL=on ..
+  build_script:
+    - cmake --build . --config ${CONFIGURATION} -- VERBOSE=1
+  test_script:
+    - ctest --output-on-failure
+  cache:
+    - /Users/appveyor/Library/Caches/Homebrew
+    - /usr/local/Homebrew
 
 install:
   - cd c:\tools\vcpkg
