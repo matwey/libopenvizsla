@@ -131,6 +131,8 @@ install(TARGETS openvizsla
 	DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
 install(FILES "include/ov.h"
 	DESTINATION ${CMAKE_INSTALL_FULL_INCLUDEDIR}/openvizsla)
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/openvizsla_export.h"
+	DESTINATION ${CMAKE_INSTALL_FULL_INCLUDEDIR}/openvizsla)
 configure_file("openvizsla.pc.in" "openvizsla.pc" @ONLY)
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/openvizsla.pc"
 	DESTINATION "${CMAKE_INSTALL_FULL_LIBDIR}/pkgconfig")
