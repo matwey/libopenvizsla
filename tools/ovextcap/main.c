@@ -21,7 +21,7 @@
 #include <unistd.h>
 #endif
 
-#include <ov.h>
+#include <openvizsla.h>
 
 #define EXTCAP_VERSION_STR "0.0.1"
 

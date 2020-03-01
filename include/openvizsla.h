@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: LGPL-3.0-or-later */
 
-#ifndef _OV_H
-#define _OV_H
+#ifndef _OPENVIZSLA_H
+#define _OPENVIZSLA_H
 
 #include <stddef.h>
 #include <stdint.h>
@@ -71,4 +71,4 @@ OPENVIZSLA_EXPORT const char* ov_get_error_string(struct ov_device* ov);
 }
 #endif
 
-#endif // _OV_H
+#endif // _OPENVIZSLA_H

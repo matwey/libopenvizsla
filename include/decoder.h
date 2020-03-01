@@ -6,7 +6,7 @@
 #include <memory.h>
 #include <stdint.h>
 
-#include <ov.h>
+#include <openvizsla.h>
 
 struct packet_decoder {
 	struct ov_packet* packet;

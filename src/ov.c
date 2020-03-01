@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: LGPL-3.0-or-later */
 
-#include <ov.h>
+#include <openvizsla.h>
 
 #include <cha.h>
 #include <chb.h>

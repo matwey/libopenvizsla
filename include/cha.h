@@ -5,7 +5,7 @@
 
 #include <decoder.h>
 #include <ftdi.h>
-#include <ov.h>
+#include <openvizsla.h>
 #include <reg.h>
 
 #include <stdint.h>

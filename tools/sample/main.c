@@ -6,7 +6,7 @@
 #include <ftdi.h>
 #include <signal.h>
 
-#include <ov.h>
+#include <openvizsla.h>
 
 static void packet_handler(struct ov_packet* packet, void* data) {
 	printf("[%04x] Received %d bytes at %d:", packet->flags, packet->size, packet->timestamp);
