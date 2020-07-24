@@ -81,18 +81,21 @@ for:
     only:
       - image: macos
   install:
-    - brew install check libftdi libusb libzip
+    - cd /Users/appveyor/vcpkg
+    - git pull -q
+    - ./bootstrap-vcpkg.sh
+    - vcpkg install check gperf libftdi1 libusb libzip[core]
+    - cd ${APPVEYOR_BUILD_FOLDER}
   before_build:
     - mkdir build
     - cd build
-    - cmake -G"${GENERATOR}" -DCMAKE_BUILD_TYPE=${CONFIGURATION} -DBUILD_SHARED_LIBS:BOOL=on ..
+    - cmake -G"${GENERATOR}" -DCMAKE_TOOLCHAIN_FILE="~/vcpkg/scripts/buildsystems/vcpkg.cmake" -DCMAKE_BUILD_TYPE=${CONFIGURATION} -DBUILD_SHARED_LIBS:BOOL=on ..
   build_script:
     - cmake --build . --config ${CONFIGURATION} -- VERBOSE=1
   test_script:
     - ctest --output-on-failure
   cache:
-    - /Users/appveyor/Library/Caches/Homebrew
-    - /usr/local/Homebrew
+    - /Users/appveyor/vcpkg/installed
 
 install:
   - cd c:\tools\vcpkg
