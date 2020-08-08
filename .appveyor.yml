@@ -67,6 +67,7 @@ for:
 install:
   - cd c:\tools\vcpkg
   - git pull -q
+  - git checkout 2020.04
   - vcpkg --triplet %VCPKG_TARGET_TRIPLET% install check libftdi1 libusb libzip[core] getopt-win32
   - ps: |
       $destinationPath = 'c:\tools\vcpkg\installed\' + $env:VCPKG_TARGET_TRIPLET + '\tools\'
