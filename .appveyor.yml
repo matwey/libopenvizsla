@@ -1,6 +1,7 @@
 image:
   - Visual Studio 2015
   - Ubuntu
+  - macos
 
 configuration:
   - Debug
@@ -23,13 +24,25 @@ matrix:
     - image: Ubuntu
       GENERATOR: MSYS Makefiles
       MSYSTEM: MINGW32
+    - image: macos
+      GENERATOR: MSYS Makefiles
+      MSYSTEM: MINGW32
     - image: Ubuntu
+      GENERATOR: MSYS Makefiles
+      MSYSTEM: MINGW64
+    - image: macos
       GENERATOR: MSYS Makefiles
       MSYSTEM: MINGW64
     - image: Ubuntu
       GENERATOR: Visual Studio 14
       VCPKG_TARGET_TRIPLET: x86-windows
+    - image: macos
+      GENERATOR: Visual Studio 14
+      VCPKG_TARGET_TRIPLET: x86-windows
     - image: Ubuntu
+      GENERATOR: Visual Studio 14 Win64
+      VCPKG_TARGET_TRIPLET: x64-windows
+    - image: macos
       GENERATOR: Visual Studio 14 Win64
       VCPKG_TARGET_TRIPLET: x64-windows
     - image: Visual Studio 2015
@@ -63,21 +76,29 @@ for:
     - cmake --build . --config ${CONFIGURATION} -- VERBOSE=1
   test_script:
     - ctest --output-on-failure
+-
+  matrix:
+    only:
+      - image: macos
+  install:
+    - brew install check libftdi libusb libzip
+  before_build:
+    - mkdir build
+    - cd build
+    - cmake -G"${GENERATOR}" -DCMAKE_BUILD_TYPE=${CONFIGURATION} -DBUILD_SHARED_LIBS:BOOL=on -DPKG_CONFIG_EXECUTABLE="/usr/local/bin/pkg-config" ..
+  build_script:
+    - cmake --build . --config ${CONFIGURATION} -- VERBOSE=1
+  test_script:
+    - ctest --output-on-failure
+  cache:
+    - /Users/appveyor/Library/Caches/Homebrew
+    - /usr/local/Homebrew
 
 install:
   - cd c:\tools\vcpkg
   - git pull -q
-  - vcpkg --triplet %VCPKG_TARGET_TRIPLET% install check libftdi1 libusb libzip[core] getopt-win32
-  - ps: |
-      $destinationPath = 'c:\tools\vcpkg\installed\' + $env:VCPKG_TARGET_TRIPLET + '\tools\'
-      $gperfFilename = Join-Path -Path $destinationPath -ChildPath 'gperf.exe'
-      $archiveFilename = 'gperf-3.0.1-bin.zip'
-      if (-not (Test-Path -Path $gperfFilename -PathType leaf)) {
-        Start-FileDownload 'https://sourceforge.net/projects/gnuwin32/files/gperf/3.0.1/gperf-3.0.1-bin.zip/download' -FileName $archiveFilename
-        Expand-Archive -Path $archiveFilename -DestinationPath '.'
-        New-Item -Type dir $destinationPath -ErrorAction SilentlyContinue
-        Copy-Item '.\bin\gperf.exe' -Destination $gperfFilename
-      }
+  - git checkout 2020.04
+  - vcpkg --triplet %VCPKG_TARGET_TRIPLET% install check gperf libftdi1 libusb libzip[core] getopt-win32
   - cd %APPVEYOR_BUILD_FOLDER%
 before_build:
   - mkdir build
