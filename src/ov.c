@@ -270,6 +270,11 @@ int ov_capture_dispatch(struct ov_device* ov, int count) {
 }
 
 OPENVIZSLA_EXPORT
+void ov_capture_breakloop(struct ov_device* ov) {
+	cha_loop_break(&ov->loop);
+}
+
+OPENVIZSLA_EXPORT
 int ov_capture_stop(struct ov_device* ov) {
 	if (cha_stop_stream(&ov->cha) < 0) {
 		ov->error_str = cha_get_error_string(&ov->cha);

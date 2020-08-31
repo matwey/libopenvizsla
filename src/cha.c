@@ -431,6 +431,11 @@ int cha_stop_stream(struct cha* cha) {
 static void cha_loop_packet_callback(struct ov_packet* packet, void* data) {
 	struct cha_loop* loop = (struct cha_loop*)data;
 
+	/* When the loop is stopped via cha_loop_break(), leftover packets may
+	 * follow from the read data buffer. */
+	if (loop->break_loop)
+		return;
+
 	if (loop->max_count > 0)
 		loop->count++;
 
@@ -587,6 +592,10 @@ fail_libusb_submit_transfer:
 fail_libusb_alloc_transfer:
 fail_read_from_ftdi:
 	return -1;
+}
+
+void cha_loop_break(struct cha_loop* loop) {
+	loop->break_loop = 1;
 }
 
 int cha_set_reg(struct cha* cha, struct reg* reg) {
