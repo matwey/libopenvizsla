@@ -13,13 +13,13 @@ find_package(LibUSB1 REQUIRED)
 find_package(LibFTDI1 REQUIRED)
 find_package(LibZip 1.0 REQUIRED)
 find_package(Check CONFIG NAMES Check check)
-if (NOT TARGET Check::check)
+if (NOT TARGET Check::checkShared)
 	find_package(PkgConfig REQUIRED)
 
 	pkg_search_module(CHECK REQUIRED Check check)
 
-	add_library(Check::check INTERFACE IMPORTED)
-	set_target_properties(Check::check PROPERTIES
+	add_library(Check::checkShared INTERFACE IMPORTED)
+	set_target_properties(Check::checkShared PROPERTIES
 		INTERFACE_LINK_LIBRARIES "${CHECK_LDFLAGS}"
 		INTERFACE_COMPILE_OPTIONS "${CHECK_CFLAGS}")
 endif()
@@ -131,7 +131,7 @@ foreach(test_source IN ITEMS ${TESTS})
 	string(REPLACE / _ test_name ${test_name})
 	string(REPLACE .c "" test_name ${test_name})
 	add_executable(${test_name} ${test_source})
-	target_link_libraries(${test_name} Check::check openvizsla_static)
+	target_link_libraries(${test_name} Check::checkShared openvizsla_static)
 	target_compile_definitions(${test_name} PRIVATE PROJECT_ROOT="${PROJECT_SOURCE_DIR}")
 	add_test(${test_name} ${test_name})
 endforeach(test_source)
