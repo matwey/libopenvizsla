@@ -59,6 +59,7 @@ install:
         }
   - cd c:\tools\vcpkg
   - git pull -q
+  - .\bootstrap-vcpkg.bat
   - vcpkg --triplet %VCPKG_TARGET_TRIPLET% install check libftdi1 libusb libzip[core] getopt gperf
   - cd %APPVEYOR_BUILD_FOLDER%
 before_build:
