@@ -9,9 +9,9 @@ configuration:
 environment:
   matrix:
     - GENERATOR: Ninja
-      VCPKG_TARGET_TRIPLET: x86-mingw
+      VCPKG_TARGET_TRIPLET: x86-mingw-dynamic
     - GENERATOR: Ninja
-      VCPKG_TARGET_TRIPLET: x64-mingw
+      VCPKG_TARGET_TRIPLET: x64-mingw-dynamic
     - GENERATOR: Unix Makefiles
     - GENERATOR: Visual Studio 14
       VCPKG_TARGET_TRIPLET: x86-windows
@@ -22,10 +22,10 @@ matrix:
   exclude:
     - image: Ubuntu
       GENERATOR: Ninja
-      VCPKG_TARGET_TRIPLET: x86-mingw
+      VCPKG_TARGET_TRIPLET: x86-mingw-dynamic
     - image: Ubuntu
       GENERATOR: Ninja
-      VCPKG_TARGET_TRIPLET: x64-mingw
+      VCPKG_TARGET_TRIPLET: x64-mingw-dynamic
     - image: Ubuntu
       GENERATOR: Visual Studio 14
       VCPKG_TARGET_TRIPLET: x86-windows
