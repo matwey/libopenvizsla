@@ -55,7 +55,7 @@ for:
 install:
   - ps: |
         if ($env:VCPKG_TARGET_TRIPLET.Contains('mingw')) {
-          $env:Path += ';C:\msys64\mingw64\bin'
+          $env:Path += ';C:\MinGW\bin'
         }
   - cd c:\tools\vcpkg
   - git pull -q
