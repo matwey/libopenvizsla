@@ -47,6 +47,8 @@ matrix:
       VCPKG_TARGET_TRIPLET: x64-windows
     - image: Visual Studio 2015
       GENERATOR: Unix Makefiles
+  allow_failures:
+    - GENERATOR: MSYS Makefiles
 
 for:
 -
