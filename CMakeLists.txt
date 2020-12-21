@@ -75,8 +75,10 @@ if(NOT ${OPENVIZSLA_LIBRARY_TYPE} STREQUAL "STATIC_LIBRARY")
 
 	add_library(openvizsla_static STATIC EXCLUDE_FROM_ALL ${SOURCES})
 	target_link_libraries(openvizsla_static LibZip::zip ${LIBRARIES})
-	set_target_properties(openvizsla_static PROPERTIES
-		ARCHIVE_OUTPUT_NAME openvizsla)
+	if(NOT WIN32)
+		set_target_properties(openvizsla_static PROPERTIES
+			ARCHIVE_OUTPUT_NAME openvizsla)
+	endif()
 	target_compile_definitions(openvizsla_static PUBLIC "_XOPEN_SOURCE;_XOPEN_SOURCE_EXTENDED")
 	target_compile_definitions(openvizsla_static PRIVATE "OPENVIZSLA_STATIC_DEFINE")
 
@@ -137,11 +139,16 @@ foreach(test_source IN ITEMS ${TESTS})
 endforeach(test_source)
 
 install(TARGETS openvizsla
-	DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
+	DESTINATION ${CMAKE_INSTALL_LIBDIR})
 install(FILES "include/openvizsla.h"
-	DESTINATION ${CMAKE_INSTALL_FULL_INCLUDEDIR}/openvizsla)
+	DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/openvizsla)
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/openvizsla_export.h"
-	DESTINATION ${CMAKE_INSTALL_FULL_INCLUDEDIR}/openvizsla)
+	DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/openvizsla)
 configure_file("openvizsla.pc.in" "openvizsla.pc" @ONLY)
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/openvizsla.pc"
-	DESTINATION "${CMAKE_INSTALL_FULL_LIBDIR}/pkgconfig")
+	DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
+
+if(WIN32)
+	set(CPACK_GENERATOR "ZIP")
+	include(CPack)
+endif()
