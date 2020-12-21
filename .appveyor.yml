@@ -108,6 +108,11 @@ before_build:
   - cmake -G"%GENERATOR%" -DCMAKE_TOOLCHAIN_FILE=c:/tools/vcpkg/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=%VCPKG_TARGET_TRIPLET% -DCMAKE_BUILD_TYPE=%CONFIGURATION% -DBUILD_SHARED_LIBS:BOOL=on ..
 build_script:
   - cmake --build . --config %CONFIGURATION%
+  - cmake --build . --config %CONFIGURATION% --target package
 test_script:
   - ctest --output-on-failure
 cache: c:\tools\vcpkg\installed
+
+artifacts:
+  - path: 'build/*.zip'
+    name: Installer

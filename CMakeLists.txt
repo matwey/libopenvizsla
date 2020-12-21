@@ -147,3 +147,8 @@ install(FILES "${CMAKE_CURRENT_BINARY_DIR}/openvizsla_export.h"
 configure_file("openvizsla.pc.in" "openvizsla.pc" @ONLY)
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/openvizsla.pc"
 	DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
+
+if(WIN32)
+	set(CPACK_GENERATOR "ZIP")
+	include(CPack)
+endif()
