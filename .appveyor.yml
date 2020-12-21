@@ -116,3 +116,14 @@ cache: c:\tools\vcpkg\installed
 artifacts:
   - path: 'build/*.zip'
     name: Installer
+
+deploy:
+  provider: GitHub
+  auth_token:
+    secure: vS1tzVAgt5X3XMnX0ioCMmr43MPQdP+im29avhhQOaRZ2BB8QRdtoRdOMmzARBmS
+  artifact: Installer
+  draft: true
+  on:
+    APPVEYOR_REPO_TAG: true
+    branch: master
+    configuration: Release
