@@ -125,5 +125,4 @@ deploy:
   draft: true
   on:
     APPVEYOR_REPO_TAG: true
-    branch: master
     configuration: Release
