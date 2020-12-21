@@ -139,11 +139,11 @@ foreach(test_source IN ITEMS ${TESTS})
 endforeach(test_source)
 
 install(TARGETS openvizsla
-	DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
+	DESTINATION ${CMAKE_INSTALL_LIBDIR})
 install(FILES "include/openvizsla.h"
-	DESTINATION ${CMAKE_INSTALL_FULL_INCLUDEDIR}/openvizsla)
+	DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/openvizsla)
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/openvizsla_export.h"
-	DESTINATION ${CMAKE_INSTALL_FULL_INCLUDEDIR}/openvizsla)
+	DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/openvizsla)
 configure_file("openvizsla.pc.in" "openvizsla.pc" @ONLY)
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/openvizsla.pc"
-	DESTINATION "${CMAKE_INSTALL_FULL_LIBDIR}/pkgconfig")
+	DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
