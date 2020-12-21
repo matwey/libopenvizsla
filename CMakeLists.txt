@@ -75,8 +75,10 @@ if(NOT ${OPENVIZSLA_LIBRARY_TYPE} STREQUAL "STATIC_LIBRARY")
 
 	add_library(openvizsla_static STATIC EXCLUDE_FROM_ALL ${SOURCES})
 	target_link_libraries(openvizsla_static LibZip::zip ${LIBRARIES})
-	set_target_properties(openvizsla_static PROPERTIES
-		ARCHIVE_OUTPUT_NAME openvizsla)
+	if(NOT WIN32)
+		set_target_properties(openvizsla_static PROPERTIES
+			ARCHIVE_OUTPUT_NAME openvizsla)
+	endif()
 	target_compile_definitions(openvizsla_static PUBLIC "_XOPEN_SOURCE;_XOPEN_SOURCE_EXTENDED")
 	target_compile_definitions(openvizsla_static PRIVATE "OPENVIZSLA_STATIC_DEFINE")
 
