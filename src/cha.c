@@ -14,6 +14,12 @@
 #define UCFG_REG_ADDRMASK 0x3f
 #define UCFG_REG_GO 0x80
 
+/* libftdi < 1.5rc1 has the old API, and we can detect that by the presence of the
+ * SIO_TCIFLUSH macro */
+#ifndef SIO_TCIFLUSH
+#define ftdi_tcioflush(x) ftdi_usb_purge_buffers(x)
+#endif
+
 struct cha_loop_packet_callback_state {
 	size_t count;
 	ov_packet_decoder_callback user_callback;
@@ -37,9 +43,9 @@ static int cha_sync_stream(struct cha* cha, uint16_t addr) {
 
 	msg[4] = cha_transaction_checksum(msg, 4);
 
-	if (ftdi_usb_purge_buffers(&cha->ftdi) < 0) {
+	if (ftdi_tcioflush(&cha->ftdi) < 0) {
 		cha->error_str = ftdi_get_error_string(&cha->ftdi);
-		goto fail_ftdi_usb_purge_buffers;
+		goto fail_ftdi_tcioflush;
 	}
 
 	if (ftdi_write_data(&cha->ftdi, msg, sizeof(msg)) < 0) {
@@ -67,14 +73,14 @@ static int cha_sync_stream(struct cha* cha, uint16_t addr) {
 		}
 	} while (sync_state != 5);
 
-	if (ftdi_usb_purge_buffers(&cha->ftdi) < 0) {
+	if (ftdi_tcioflush(&cha->ftdi) < 0) {
 		cha->error_str = ftdi_get_error_string(&cha->ftdi);
-		goto fail_ftdi_usb_purge_buffers;
+		goto fail_ftdi_tcioflush;
 	}
 
 	return 0;
 
-fail_ftdi_usb_purge_buffers:
+fail_ftdi_tcioflush:
 fail_ftdi_read_data:
 fail_ftdi_write_data:
 	return -1;
@@ -131,14 +137,14 @@ static int cha_switch_mode(struct cha* cha, unsigned char mode) {
 		goto fail_ftdi_set_baudrate;
 	}
 
-	if (ftdi_usb_purge_buffers(&cha->ftdi) < 0) {
+	if (ftdi_tcioflush(&cha->ftdi) < 0) {
 		cha->error_str = ftdi_get_error_string(&cha->ftdi);
-		goto fail_ftdi_usb_purge_buffers;
+		goto fail_ftdi_tcioflush;
 	}
 
 	return 0;
 
-fail_ftdi_usb_purge_buffers:
+fail_ftdi_tcioflush:
 fail_ftdi_set_bitmode_set:
 fail_ftdi_set_baudrate:
 fail_ftdi_set_bitmode_reset:
