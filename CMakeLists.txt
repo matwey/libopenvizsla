@@ -140,6 +140,8 @@ endforeach(test_source)
 
 install(TARGETS openvizsla
 	DESTINATION ${CMAKE_INSTALL_LIBDIR})
+install(TARGETS ovextcap
+	DESTINATION ${CMAKE_INSTALL_BINDIR})
 install(FILES "include/openvizsla.h"
 	DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/openvizsla)
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/openvizsla_export.h"
