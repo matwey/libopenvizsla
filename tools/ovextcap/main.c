@@ -23,10 +23,25 @@
 
 #include <openvizsla.h>
 
-#define EXTCAP_VERSION_STR "0.0.1"
+#define EXTCAP_VERSION_STR "0.0.2"
+
+#define EXTCAP_INTERFACE_DEPRECATED "ov"
+#define EXTCAP_INTERFACE_LOW_SPEED "ov-low"
+#define EXTCAP_INTERFACE_FULL_SPEED "ov-full"
+#define EXTCAP_INTERFACE_HIGH_SPEED "ov-high"
+
+enum wireshark_version {
+	WIRESHARK_VERSION_UNKNOWN,
+	WIRESHARK_VERSION_2_9_OR_NEWER, /* Supports --extcap-version */
+	WIRESHARK_VERSION_3_1_OR_NEWER, /* Supports obsolete USBLL linklayer type */
+	WIRESHARK_VERSION_4_0_OR_NEWER, /* Supports speed specific linklayer types */
+};
 
 #define PCAP_NANOSEC_MAGIC (0xa1b23c4d)
 #define LINKTYPE_USBLL (288)
+#define LINKTYPE_USBLL_LOW_SPEED (293)
+#define LINKTYPE_USBLL_FULL_SPEED (294)
+#define LINKTYPE_USBLL_HIGH_SPEED (295)
 
 #define OV_TIMESTAMP_FREQ_HZ (60000000)
 
@@ -113,14 +128,14 @@ static void flush_data(FILE** out) {
 	}
 }
 
-static void write_pcap_header(FILE** out) {
+static void write_pcap_header(FILE** out, uint32_t linktype) {
 	write_uint32(PCAP_NANOSEC_MAGIC, out);
 	write_uint16(2, out);
 	write_uint16(4, out);
 	write_uint32(0, out);
 	write_uint32(0, out);
 	write_uint32(65535, out);
-	write_uint32(LINKTYPE_USBLL, out);
+	write_uint32(linktype, out);
 	flush_data(out);
 }
 
@@ -297,7 +312,8 @@ static void packet_handler(struct ov_packet* packet, void* user_data) {
 	}
 }
 
-static int start_capture(enum ov_usb_speed speed, bool filter_naks, bool filter_sofs, const char* extcap_fifo, FILE* debug_pcap) {
+static int start_capture(enum ov_usb_speed speed, uint32_t linktype, bool filter_naks, bool filter_sofs, const char* extcap_fifo,
+                         FILE* debug_pcap) {
 	int ret;
 	struct timespec ts;
 	struct handler_data data;
@@ -354,8 +370,8 @@ static int start_capture(enum ov_usb_speed speed, bool filter_naks, bool filter_
 	data.queue = NULL;
 
 	/* Write pcap header */
-	write_pcap_header(&data.out);
-	write_pcap_header(&data.debug);
+	write_pcap_header(&data.out, linktype);
+	write_pcap_header(&data.debug, linktype);
 
 	ret = ov_capture_start(ov, &p.packet, sizeof(p), &packet_handler, &data);
 	if (ret < 0) {
@@ -385,34 +401,73 @@ static int start_capture(enum ov_usb_speed speed, bool filter_naks, bool filter_
 	return ret;
 }
 
+static enum wireshark_version wireshark_version_from_string(const char* version) {
+	int major, minor;
+	if (sscanf(version, "%d.%d", &major, &minor) == 2) {
+		if (major >= 4) {
+			return WIRESHARK_VERSION_4_0_OR_NEWER;
+		} else if ((major == 3) && (minor >= 1)) {
+			return WIRESHARK_VERSION_3_1_OR_NEWER;
+		}
+		return WIRESHARK_VERSION_2_9_OR_NEWER;
+	}
+	return WIRESHARK_VERSION_UNKNOWN;
+}
+
 static void print_extcap_version(void) {
 	printf("extcap {version=" EXTCAP_VERSION_STR "}{help=https://github.com/matwey/libopenvizsla/}\n");
 }
 
-static void print_extcap_interfaces(void) {
-	printf("interface {value=ov}{display=OpenVizsla FPGA-based USB sniffer}\n");
+static void print_extcap_interfaces(enum wireshark_version ws_version) {
+	if (ws_version == WIRESHARK_VERSION_3_1_OR_NEWER) {
+		/* Wireshark has USBLL dissector but does not support speed specific linktypes */
+		printf("interface {value=" EXTCAP_INTERFACE_DEPRECATED "}{display=OpenVizsla FPGA-based USB sniffer}\n");
+	} else {
+		printf("interface {value=" EXTCAP_INTERFACE_LOW_SPEED "}{display=OpenVizsla Low Speed USB capture}\n");
+		printf("interface {value=" EXTCAP_INTERFACE_FULL_SPEED "}{display=OpenVizsla Full Speed USB capture}\n");
+		printf("interface {value=" EXTCAP_INTERFACE_HIGH_SPEED "}{display=OpenVizsla High Speed USB capture}\n");
+	}
 }
 
-static void print_extcap_dlts(void) {
-	printf("dlt {number=%d}{name=USB_2_0}{display=USB 2.0/1.1/1.0}\n", LINKTYPE_USBLL);
+static void print_extcap_dlts(const char* interface) {
+	if (!strcmp(interface, EXTCAP_INTERFACE_DEPRECATED)) {
+		printf("dlt {number=%d}{name=USB_2_0}{display=USB 2.0/1.1/1.0}\n", LINKTYPE_USBLL);
+	} else if (!strcmp(interface, EXTCAP_INTERFACE_LOW_SPEED)) {
+		printf("dlt {number=%d}{name=USB_2_0_LOW_SPEED}{display=Low-Speed USB 2.0/1.1/1.0}\n", LINKTYPE_USBLL_LOW_SPEED);
+	} else if (!strcmp(interface, EXTCAP_INTERFACE_FULL_SPEED)) {
+		printf("dlt {number=%d}{name=USB_2_0_FULL_SPEED}{display=Full-Speed USB 2.0/1.1/1.0}\n", LINKTYPE_USBLL_FULL_SPEED);
+	} else if (!strcmp(interface, EXTCAP_INTERFACE_HIGH_SPEED)) {
+		printf("dlt {number=%d}{name=USB_2_0_HIGH_SPEED}{display=High-Speed USB 2.0}\n", LINKTYPE_USBLL_HIGH_SPEED);
+	}
 }
 
-static void print_extcap_options(void) {
-	printf("arg {number=0}{call=--speed}"
-	       "{display=Capture speed}{tooltip=Analyzed device USB speed}"
-	       "{type=selector}{default=%d}{group=Capture}\n",
-	       OV_HIGH_SPEED);
-	printf("value {arg=0}{value=%d}{display=High}\n", OV_HIGH_SPEED);
-	printf("value {arg=0}{value=%d}{display=Full}\n", OV_FULL_SPEED);
-	printf("value {arg=0}{value=%d}{display=Low}\n", OV_LOW_SPEED);
+static void print_extcap_options(const char* interface) {
+	if (!strcmp(interface, EXTCAP_INTERFACE_DEPRECATED)) {
+		printf("arg {number=0}{call=--speed}"
+		       "{display=Capture speed}{tooltip=Analyzed device USB speed}"
+		       "{type=selector}{default=%d}{group=Capture}\n",
+		       OV_HIGH_SPEED);
+		printf("value {arg=0}{value=%d}{display=High}\n", OV_HIGH_SPEED);
+		printf("value {arg=0}{value=%d}{display=Full}\n", OV_FULL_SPEED);
+		printf("value {arg=0}{value=%d}{display=Low}\n", OV_LOW_SPEED);
+	}
+
 	printf("arg {number=1}{call=--filter-nak}"
 	       "{display=Filter NAKed transactions}"
 	       "{tooltip=NAKed SPLIT transactions won't be filtered}"
 	       "{type=boolflag}{default=false}{group=Capture}\n");
-	printf("arg {number=2}{call=--filter-sof}"
-	       "{display=Filter Full and High speed Start-of-Frame packets}"
-	       "{tooltip=Only SOFs that do not interrupt any transaction will be filtered}"
-	       "{type=boolflag}{default=false}{group=Capture}\n");
+
+	if (!strcmp(interface, EXTCAP_INTERFACE_DEPRECATED)) {
+		printf("arg {number=2}{call=--filter-sof}"
+		       "{display=Filter Full and High speed Start-of-Frame packets}"
+		       "{tooltip=Only SOFs that do not interrupt any transaction will be filtered}"
+		       "{type=boolflag}{default=false}{group=Capture}\n");
+	} else if (!strcmp(interface, EXTCAP_INTERFACE_FULL_SPEED) || !strcmp(interface, EXTCAP_INTERFACE_HIGH_SPEED)) {
+		printf("arg {number=2}{call=--filter-sof}"
+		       "{display=Filter Start-of-Frame packets}"
+		       "{tooltip=Only SOFs that do not interrupt any transaction will be filtered}"
+		       "{type=boolflag}{default=false}{group=Capture}\n");
+	}
 
 	printf("arg {number=800}{call=--overwrite-debug-pcap}{display=Overwrite .pcap file if it exists}{type=boolflag}"
 	       "{required=false}{default=false}{group=Debug}\n");
@@ -422,11 +477,13 @@ static void print_extcap_options(void) {
 }
 
 int main(int argc, char** argv) {
+	uint32_t linktype = LINKTYPE_USBLL;
 	enum ov_usb_speed speed = OV_HIGH_SPEED;
 
 	int filter_naks = 0;
 	int filter_sofs = 0;
 	int overwrite_debug_pcap = 0;
+	int use_deprecated_linktype = 0;
 	const char* debug_pcap_filename = NULL;
 	FILE* debug_pcap = NULL;
 
@@ -435,7 +492,7 @@ int main(int argc, char** argv) {
 	int do_extcap_dlts = 0;
 	int do_extcap_config = 0;
 	int do_extcap_capture = 0;
-	const char* wireshark_version = NULL;
+	enum wireshark_version ws_version = WIRESHARK_VERSION_UNKNOWN;
 	const char* extcap_interface = NULL;
 	const char* extcap_fifo = NULL;
 
@@ -485,7 +542,7 @@ int main(int argc, char** argv) {
 				break;
 			case ARG_EXTCAP_VERSION:
 				do_extcap_version = 1;
-				wireshark_version = optarg;
+				ws_version = wireshark_version_from_string(optarg);
 				break;
 			case ARG_EXTCAP_INTERFACE:
 				extcap_interface = optarg;
@@ -505,15 +562,28 @@ int main(int argc, char** argv) {
 	}
 
 	if (do_extcap_interfaces) {
-		print_extcap_interfaces();
+		print_extcap_interfaces(ws_version);
 	}
 
-	if (do_extcap_dlts) {
-		print_extcap_dlts();
-	}
+	if (extcap_interface) {
+		if (do_extcap_dlts) {
+			print_extcap_dlts(extcap_interface);
+		}
 
-	if (do_extcap_config) {
-		print_extcap_options();
+		if (do_extcap_config) {
+			print_extcap_options(extcap_interface);
+		}
+
+		if (!strcmp(extcap_interface, EXTCAP_INTERFACE_LOW_SPEED)) {
+			linktype = LINKTYPE_USBLL_LOW_SPEED;
+			speed = OV_LOW_SPEED;
+		} else if (!strcmp(extcap_interface, EXTCAP_INTERFACE_FULL_SPEED)) {
+			linktype = LINKTYPE_USBLL_FULL_SPEED;
+			speed = OV_FULL_SPEED;
+		} else if (!strcmp(extcap_interface, EXTCAP_INTERFACE_HIGH_SPEED)) {
+			linktype = LINKTYPE_USBLL_HIGH_SPEED;
+			speed = OV_HIGH_SPEED;
+		}
 	}
 
 	if (do_extcap_capture) {
@@ -541,7 +611,7 @@ int main(int argc, char** argv) {
 				return -1;
 			}
 		}
-		return start_capture(speed, filter_naks, filter_sofs, extcap_fifo, debug_pcap);
+		return start_capture(speed, linktype, filter_naks, filter_sofs, extcap_fifo, debug_pcap);
 	}
 
 	return 0;
