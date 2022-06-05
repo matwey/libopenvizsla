@@ -22,21 +22,6 @@ struct ov_device {
 	const char* error_str;
 };
 
-/* cha must be in config mode to operate */
-static int ov_get_device_status(struct ov_device* ov) {
-	const uint8_t mask = PORTB_INIT_BIT | PORTB_DONE_BIT;
-	uint8_t status = 0;
-	int ret = 0;
-
-	ret = chb_get_status(&ov->chb, &status);
-	if (ret < 0) {
-		ov->error_str = chb_get_error_string(&ov->chb);
-		return -1;
-	}
-
-	return (status & mask) == mask;
-}
-
 static int ov_load_firmware_from_fwpkg(struct ov_device* ov, struct fwpkg* fwpkg) {
 	struct bit bit;
 	size_t size;
@@ -165,14 +150,9 @@ int ov_open(struct ov_device* ov) {
 		goto fail_chb_open;
 	}
 
-	ret = ov_get_device_status(ov);
+	ret = ov_load_firmware_from_fwpkg(ov, &ov->fwpkg);
 	if (ret < 0) {
-		goto fail_ov_get_device_status;
-	} else if (ret == 0) {
-		ret = ov_load_firmware_from_fwpkg(ov, &ov->fwpkg);
-		if (ret < 0) {
-			goto fail_ov_load_firmware;
-		}
+		goto fail_ov_load_firmware;
 	}
 
 	ret = cha_switch_fifo_mode(&ov->cha);
@@ -192,7 +172,6 @@ int ov_open(struct ov_device* ov) {
 fail_cha_stop_stream:
 fail_cha_switch_fifo_mode:
 fail_ov_load_firmware:
-fail_ov_get_device_status:
 fail_chb_open:
 	// FIXME: close cha?
 fail_cha_open:
