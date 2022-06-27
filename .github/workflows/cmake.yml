@@ -1,0 +1,72 @@
+name: CMake
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ${{matrix.os}}
+
+    env:
+      VCPKG_ROOT: 'C:\vcpkg'
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-2019]
+        include:
+          - os: windows-2019
+            triplet: x64-windows
+        build_type: [Release, Debug]
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Install dependencies on Linux
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake check gperf libftdi1-dev libzip-dev
+
+    - name: Install dependencies on macOS
+      if: runner.os == 'macOS'
+      run: |
+        brew install check libftdi libusb libzip
+
+    - name: Restore vcpkg cache
+      if: runner.os == 'Windows'
+      uses: actions/cache@v2
+      with:
+        path: |
+          ${{env.VCPKG_ROOT}}
+          !${{env.VCPKG_ROOT}}/buildtrees
+          !${{env.VCPKG_ROOT}}/packages
+          !${{env.VCPKG_ROOT}}/downloads
+          !${{env.VCPKG_ROOT}}/installed
+        key: |
+          ${{matrix.os}}-${{matrix.triplet}}
+
+    - name: Install dependencies on Windows
+      if: runner.os == 'Windows'
+      run: |
+        git --git-dir="${{env.VCPKG_ROOT}}" fetch origin
+        git --git-dir="${{env.VCPKG_ROOT}}" checkout 73d50c1b8290af45cb5922d721b74946c058481c
+        vcpkg install --triplet ${{matrix.triplet}} check gperf libftdi1 libusb libzip[core] getopt-win32
+
+    - name: Configure CMake
+      if: runner.os != 'Windows'
+      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DBUILD_SHARED_LIBS:BOOL=on -DCMAKE_VERBOSE_MAKEFILE:BOOL=on
+
+    - name: Configure CMake on Windows
+      if: runner.os == 'Windows'
+      # "C:/does/not/exists/pkg-config.exe" is a workaround for cmake 3.23
+      run: cmake -A ${{runner.arch}} -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DBUILD_SHARED_LIBS:BOOL=on -DCMAKE_VERBOSE_MAKEFILE:BOOL=on -DCMAKE_TOOLCHAIN_FILE=${{env.VCPKG_ROOT}}/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=${{matrix.triplet}} -DPKG_CONFIG_EXECUTABLE="C:/does/not/exists/pkg-config.exe"
+
+    - name: Build
+      run: cmake --build ${{github.workspace}}/build --config ${{matrix.build_type}}
+
+    - name: Build package on Windows
+      if: runner.os == 'Windows'
+      run: cmake --build ${{github.workspace}}/build --config ${{matrix.build_type}} --target package
+
+    - name: Test
+      working-directory: ${{github.workspace}}/build
+      run: ctest -C ${{matrix.build_type}} --output-on-failure

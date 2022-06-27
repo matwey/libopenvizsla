@@ -74,7 +74,7 @@ if(NOT ${OPENVIZSLA_LIBRARY_TYPE} STREQUAL "STATIC_LIBRARY")
 		C_VISIBILITY_PRESET hidden)
 
 	add_library(openvizsla_static STATIC EXCLUDE_FROM_ALL ${SOURCES})
-	target_link_libraries(openvizsla_static LibZip::zip ${LIBRARIES})
+	target_link_libraries(openvizsla_static ${LIBRARIES})
 	if(NOT WIN32)
 		set_target_properties(openvizsla_static PROPERTIES
 			ARCHIVE_OUTPUT_NAME openvizsla)
