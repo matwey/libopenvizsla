@@ -81,6 +81,13 @@ jobs:
       if: runner.os == 'Windows'
       run: cmake --build ${{github.workspace}}/build --config ${{matrix.build_type}} --target package
 
+    - name: Store the package
+      if: runner.os == 'Windows'
+      uses: actions/upload-artifact@v3
+      with:
+        name: ${{matrix.build_type}} package for Windows ${{matrix.arch}}
+        path: build/libopenvizsla-*.zip
+
     - name: Test
       working-directory: ${{github.workspace}}/build
       run: ctest -C ${{matrix.build_type}} --output-on-failure
