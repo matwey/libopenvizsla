@@ -11,11 +11,25 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-2019]
+        os: [ubuntu-latest, macos-latest]
+        build_type: [Release, Debug]
         include:
           - os: windows-2019
+            arch: x64
+            build_type: Release
             triplet: x64-windows
-        build_type: [Release, Debug]
+          - os: windows-2019
+            arch: x64
+            build_type: Debug
+            triplet: x64-windows
+          - os: windows-2019
+            arch: Win32
+            build_type: Release
+            triplet: x86-windows
+          - os: windows-2019
+            arch: Win32
+            build_type: Debug
+            triplet: x86-windows
 
     steps:
     - uses: actions/checkout@v3
@@ -58,7 +72,7 @@ jobs:
     - name: Configure CMake on Windows
       if: runner.os == 'Windows'
       # "C:/does/not/exists/pkg-config.exe" is a workaround for cmake 3.23
-      run: cmake -A ${{runner.arch}} -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DBUILD_SHARED_LIBS:BOOL=on -DCMAKE_VERBOSE_MAKEFILE:BOOL=on -DCMAKE_TOOLCHAIN_FILE=${{env.VCPKG_ROOT}}/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=${{matrix.triplet}} -DPKG_CONFIG_EXECUTABLE="C:/does/not/exists/pkg-config.exe"
+      run: cmake -A ${{matrix.arch}} -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DBUILD_SHARED_LIBS:BOOL=on -DCMAKE_VERBOSE_MAKEFILE:BOOL=on -DCMAKE_TOOLCHAIN_FILE=${{env.VCPKG_ROOT}}/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=${{matrix.triplet}} -DPKG_CONFIG_EXECUTABLE="C:/does/not/exists/pkg-config.exe"
 
     - name: Build
       run: cmake --build ${{github.workspace}}/build --config ${{matrix.build_type}}
