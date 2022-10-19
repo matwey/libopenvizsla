@@ -1,6 +1,9 @@
 cmake_minimum_required (VERSION 3.1)
 # CXX language is required by GenerateExportHeader
 project(libopenvizsla LANGUAGES C CXX VERSION 0.1.0)
+if(NOT (CMAKE_VERSION VERSION_LESS "3.14.0"))
+	cmake_policy(SET CMP0087 NEW)
+endif()
 
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 set(CMAKE_C_STANDARD 99)
@@ -147,8 +150,28 @@ install(FILES "${CMAKE_CURRENT_BINARY_DIR}/openvizsla_export.h"
 configure_file("openvizsla.pc.in" "openvizsla.pc" @ONLY)
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/openvizsla.pc"
 	DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
+install(TARGETS ovextcap
+	DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 if(WIN32)
+	install(CODE [[
+		file(GET_RUNTIME_DEPENDENCIES
+			EXECUTABLES $<TARGET_FILE:ovextcap>
+			LIBRARIES $<TARGET_FILE:openvizsla>
+			RESOLVED_DEPENDENCIES_VAR DEPS
+			PRE_EXCLUDE_REGEXES ^api-ms-.* ^ext-ms-.*
+			POST_EXCLUDE_REGEXES ^[cC]:[\\/][wW][iI][nN][dD][oO][wW][sS][\\/].*
+		)
+
+		message(${DEPS})
+
+		file(INSTALL
+			FILES ${DEPS}
+			TYPE SHARED_LIBRARY
+			FOLLOW_SYMLINK_CHAIN
+			DESTINATION "${CMAKE_INSTALL_PREFIX}/bin")
+	]])
+
 	set(CPACK_GENERATOR "ZIP")
 	include(CPack)
 endif()
