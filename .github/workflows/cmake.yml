@@ -88,6 +88,12 @@ jobs:
         name: ${{matrix.build_type}} package for Windows ${{matrix.arch}}
         path: build/libopenvizsla-*.zip
 
+    - name: Release the package
+      if: runner.os == 'Windows' && matrix.build_type == 'Release' && startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: libopenvizsla-*.zip
+
     - name: Test
       working-directory: ${{github.workspace}}/build
       run: ctest -C ${{matrix.build_type}} --output-on-failure
