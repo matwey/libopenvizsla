@@ -92,7 +92,7 @@ jobs:
       if: runner.os == 'Windows' && matrix.build_type == 'Release' && startsWith(github.ref, 'refs/tags/')
       uses: softprops/action-gh-release@v1
       with:
-        files: libopenvizsla-*.zip
+        files: build/libopenvizsla-*.zip
 
     - name: Test
       working-directory: ${{github.workspace}}/build
