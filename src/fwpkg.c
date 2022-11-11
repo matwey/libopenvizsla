@@ -171,7 +171,7 @@ int fwpkg_init_from_preload(struct fwpkg* fwpkg) {
 int fwpkg_init_from_preload(struct fwpkg* fwpkg) {
 	return fwpkg_init_from_buffer(fwpkg,
 		(const void*)_binary_ov3_fwpkg_start,
-		(const void*)_binary_ov3_fwpkg_end - (const void*)_binary_ov3_fwpkg_start);
+		_binary_ov3_fwpkg_end - _binary_ov3_fwpkg_start);
 }
 #endif
 
