@@ -216,8 +216,8 @@ int chb_get_status(struct chb* chb, uint8_t* status) {
 }
 
 int chb_switch_program_mode(struct chb* chb) {
-	int ret;
-	uint8_t status;
+	int ret = 0;
+	uint8_t status = 0;
 	int try = 3;
 
 	// Mode pins       M[1:0] = 0b10 (active-low)

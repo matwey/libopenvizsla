@@ -167,8 +167,8 @@ int bit_load_firmware(struct bit* bit, struct cha* cha, struct chb* chb) {
 	const uint8_t* data = bit->data;
 	size_t length = bit->size;
 	struct ftdi_transfer_control* tc = NULL;
-	int ret;
-	uint8_t status;
+	int ret = 0;
+	uint8_t status = 0;
 	int try = 3;
 
 	for (bidx = 0; length; bidx = (bidx + 1) % 2) {
