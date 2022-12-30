@@ -12,16 +12,6 @@
 extern "C" {
 #endif
 
-#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-#	define ov_to_host_16(x) (x)
-#	define ov_to_host_24(x) (x)
-#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
-#	define ov_to_host_16(x) (__builtin_bswap16(x))
-#	define ov_to_host_24(x) (__builtin_bswap32(x) >> 8)
-#else
-#	error "Unknown platform byte order"
-#endif
-
 struct ov_device;
 
 #ifdef _MSC_VER
