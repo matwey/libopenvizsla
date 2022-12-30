@@ -35,6 +35,7 @@ add_custom_command(OUTPUT ov3.fwpkg.o
 	COMMAND ${CMAKE_LINKER} -r -z noexecstack -b binary -o ${CMAKE_CURRENT_BINARY_DIR}/ov3.fwpkg.o ov3.fwpkg
 	COMMAND ${CMAKE_OBJCOPY} --rename-section .data=.rodata,alloc,load,readonly,data,contents ${CMAKE_CURRENT_BINARY_DIR}/ov3.fwpkg.o ${CMAKE_CURRENT_BINARY_DIR}/ov3.fwpkg.o
 	MAIN_DEPENDENCY ov3.fwpkg)
+add_custom_target(generated_fwpkg DEPENDS ov3.fwpkg.o)
 
 find_program(GPERF NAMES gperf)
 if(NOT GPERF)
@@ -45,6 +46,7 @@ add_custom_command(OUTPUT reg_gperf.h
 	WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 	COMMAND ${GPERF} -t -L C src/reg.gperf > ${CMAKE_CURRENT_BINARY_DIR}/reg_gperf.h
 	MAIN_DEPENDENCY src/reg.gperf)
+add_custom_target(generated_gperf DEPENDS reg_gperf.h)
 
 file(GLOB_RECURSE SOURCES src/*.c)
 list(APPEND SOURCES
@@ -56,6 +58,7 @@ list(APPEND LIBRARIES
 
 add_library(openvizsla ${SOURCES})
 target_link_libraries(openvizsla ${LIBRARIES})
+add_dependencies(openvizsla generated_gperf)
 #
 # Here are a set of rules to help you update your library version information:
 #
@@ -81,6 +84,7 @@ elseif(APPLE)
 	set(RESOURCE_LINK_OPTIONS "-sectcreate;__DATA;__ov3_fwpkg;${CMAKE_CURRENT_SOURCE_DIR}/ov3.fwpkg")
 else()
 	target_sources(openvizsla PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/ov3.fwpkg.o)
+	add_dependencies(openvizsla generated_fwpkg)
 endif()
 
 get_target_property(OPENVIZSLA_LIBRARY_TYPE openvizsla TYPE)
@@ -90,6 +94,7 @@ if(NOT ${OPENVIZSLA_LIBRARY_TYPE} STREQUAL "STATIC_LIBRARY")
 
 	add_library(openvizsla_static STATIC EXCLUDE_FROM_ALL ${SOURCES})
 	target_link_libraries(openvizsla_static ${LIBRARIES})
+	add_dependencies(openvizsla_static generated_gperf)
 	if(NOT WIN32)
 		set_target_properties(openvizsla_static PROPERTIES
 			ARCHIVE_OUTPUT_NAME openvizsla)
@@ -105,6 +110,7 @@ if(NOT ${OPENVIZSLA_LIBRARY_TYPE} STREQUAL "STATIC_LIBRARY")
 		set_target_properties(openvizsla_static PROPERTIES INTERFACE_LINK_OPTIONS "${RESOURCE_LINK_OPTIONS}")
 	else()
 		target_sources(openvizsla_static PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/ov3.fwpkg.o)
+		add_dependencies(openvizsla_static generated_fwpkg)
 	endif()
 else()
 	add_library(openvizsla_static ALIAS openvizsla)
