@@ -38,7 +38,7 @@ int packet_decoder_proc(struct packet_decoder* pd, uint8_t* buf, size_t size) {
 				pd->state = NEED_PACKET_FLAGS_HI;
 			} break;
 			case NEED_PACKET_FLAGS_HI: {
-				pd->packet->flags = ov_to_host_16((*(buf++) << 8) | pd->packet->flags);
+				pd->packet->flags = (*(buf++) << 8) | pd->packet->flags;
 				pd->state = NEED_PACKET_LENGTH_LO;
 			} break;
 			case NEED_PACKET_LENGTH_LO: {
@@ -46,7 +46,7 @@ int packet_decoder_proc(struct packet_decoder* pd, uint8_t* buf, size_t size) {
 				pd->state = NEED_PACKET_LENGTH_HI;
 			} break;
 			case NEED_PACKET_LENGTH_HI: {
-				pd->packet->size = ov_to_host_16((*(buf++) << 8) | pd->packet->size);
+				pd->packet->size = (*(buf++) << 8) | pd->packet->size;
 				pd->state = NEED_PACKET_TIMESTAMP_LO;
 
 				// FIXME: check available buffer size
@@ -60,11 +60,11 @@ int packet_decoder_proc(struct packet_decoder* pd, uint8_t* buf, size_t size) {
 				pd->state = NEED_PACKET_TIMESTAMP_HI;
 			} break;
 			case NEED_PACKET_TIMESTAMP_HI: {
-				pd->packet->timestamp = ov_to_host_24((*(buf++) << 16) | pd->packet->timestamp);
+				pd->packet->timestamp = (*(buf++) << 16) | pd->packet->timestamp;
 				pd->state = NEED_PACKET_DATA;
 			} break;
 			case NEED_PACKET_DATA: {
-				const size_t required_length = ov_to_host_16(pd->packet->size) - pd->buf_actual_length;
+				const size_t required_length = pd->packet->size - pd->buf_actual_length;
 				const size_t copy = (required_length < (end - buf) ? required_length : end - buf);
 
 				memcpy(pd->packet->data + pd->buf_actual_length, buf, copy);
