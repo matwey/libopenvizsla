@@ -15,6 +15,10 @@ int packet_decoder_init(struct packet_decoder* pd, struct ov_packet* p, size_t s
 	pd->buf_actual_length = 0;
 	pd->buf_length = size;
 	pd->error_str = NULL;
+	pd->cumulative_ts = 0;
+	pd->ts_byte = 0;
+	pd->ts_length = 0;
+	pd->state = NEED_PACKET_MAGIC;
 
 	return 0;
 }
@@ -28,20 +32,21 @@ int packet_decoder_proc(struct packet_decoder* pd, uint8_t* buf, size_t size) {
 				assert(pd->buf_actual_length == 0);
 				assert(pd->buf_length > 0);
 
-				if (*buf != 0xa0) {
+				if (*buf == 0xa1) {
+					/* Discard magic filler */
+					buf++;
+					break;
+				}
+				if ((*buf != 0xa0) && (*buf != 0xa2)) {
 					pd->error_str = "Wrong packet magic";
 					return -1;
 				}
 
 				pd->packet->magic = *(buf++);
-				pd->state = NEED_PACKET_FLAGS_LO;
+				pd->state = NEED_PACKET_FLAGS;
 			} break;
-			case NEED_PACKET_FLAGS_LO: {
+			case NEED_PACKET_FLAGS: {
 				pd->packet->flags = *(buf++);
-				pd->state = NEED_PACKET_FLAGS_HI;
-			} break;
-			case NEED_PACKET_FLAGS_HI: {
-				pd->packet->flags = (*(buf++) << 8) | pd->packet->flags;
 				pd->state = NEED_PACKET_LENGTH_LO;
 			} break;
 			case NEED_PACKET_LENGTH_LO: {
@@ -49,22 +54,21 @@ int packet_decoder_proc(struct packet_decoder* pd, uint8_t* buf, size_t size) {
 				pd->state = NEED_PACKET_LENGTH_HI;
 			} break;
 			case NEED_PACKET_LENGTH_HI: {
-				pd->packet->size = (*(buf++) << 8) | pd->packet->size;
-				pd->state = NEED_PACKET_TIMESTAMP_LO;
+				pd->packet->size = ((*buf & 0x1f) << 8) | pd->packet->size;
+				pd->ts_length = (((*(buf++)) & 0xe0) >> 5) + 1;
+				pd->ts_byte = 0;
+				pd->packet->timestamp = 0;
+				pd->state = NEED_PACKET_TIMESTAMP;
 
 				// FIXME: check available buffer size
 			} break;
-			case NEED_PACKET_TIMESTAMP_LO: {
-				pd->packet->timestamp = *(buf++);
-				pd->state = NEED_PACKET_TIMESTAMP_ME;
-			} break;
-			case NEED_PACKET_TIMESTAMP_ME: {
-				pd->packet->timestamp |= *(buf++) << 8;
-				pd->state = NEED_PACKET_TIMESTAMP_HI;
-			} break;
-			case NEED_PACKET_TIMESTAMP_HI: {
-				pd->packet->timestamp = (*(buf++) << 16) | pd->packet->timestamp;
-				pd->state = NEED_PACKET_DATA;
+			case NEED_PACKET_TIMESTAMP: {
+				pd->packet->timestamp |= ((uint64_t)*(buf++)) << (8 * (pd->ts_byte++));
+				if (pd->ts_byte >= pd->ts_length) {
+					pd->cumulative_ts += pd->packet->timestamp;
+					pd->packet->timestamp = pd->cumulative_ts;
+					pd->state = NEED_PACKET_DATA;
+				}
 			} break;
 			case NEED_PACKET_DATA: {
 				const size_t required_length = pd->packet->size - pd->buf_actual_length;

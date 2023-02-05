@@ -80,8 +80,8 @@ struct handler_data {
 	FILE* out;           /**< Output file. Set to NULL if capture stopped from Wireshark (broken pipe). */
 	FILE* debug;         /**< Debug output file. NULL if not writing to debug file. */
 	uint32_t utc_ts;     /**< Seconds since epoch */
-	uint32_t last_ov_ts; /**< Last seen OpenVizsla timestamp. Used to detect overflows */
 	uint32_t ts_offset;  /**< Timestamp offset in 1/OV_TIMESTAMP_FREQ_HZ units */
+	uint64_t last_ov_ts; /**< Last received packet timestamp */
 
 	bool filter_naks; /**< True if NAKs should be filtered */
 	bool filter_sofs; /**< True if uninteresting SOFs should be filtered */
@@ -281,28 +281,19 @@ static void packet_handler(struct ov_packet* packet, void* user_data) {
 	/* Increment timestamp based on the 60 MHz 24-bit counter value.
 	 * Convert remaining clocks to nanoseconds: 1 clk = 1 / 60 MHz = 16.(6) ns
 	 */
-	uint64_t clks;
-	if (packet->timestamp < data->last_ov_ts) {
-		data->ts_offset += (1 << 24);
-	}
+	uint64_t diff_ts;
+	diff_ts = packet->timestamp - data->last_ov_ts;
 	data->last_ov_ts = packet->timestamp;
-	clks = data->ts_offset + packet->timestamp;
-	if (clks >= OV_TIMESTAMP_FREQ_HZ) {
-		data->utc_ts += 1;
-		data->ts_offset -= OV_TIMESTAMP_FREQ_HZ;
-		clks -= OV_TIMESTAMP_FREQ_HZ;
-	}
-	nsec = (clks * 17) - (clks / 3);
+	data->utc_ts += (data->ts_offset + diff_ts) / OV_TIMESTAMP_FREQ_HZ;
+	data->ts_offset = (data->ts_offset + diff_ts) % OV_TIMESTAMP_FREQ_HZ;
+	nsec = (data->ts_offset * 17) - (data->ts_offset / 3);
 
 	/* Only write actual USB packets */
 	if (packet->size > 0) {
 		struct pcap_packet pkt = {
 		    .ts_sec = data->utc_ts,
 		    .ts_nsec = nsec,
-		    /* TODO: Modify OV firmware to provide info how long was truncated packet
-		     * Currently this code lies that all packets are fully captured...
-		     */
-		    .incl_len = packet->size,
+		    .incl_len = ov_packet_captured_size(packet),
 		    .orig_len = packet->size,
 		    .captured = packet->data,
 		};
