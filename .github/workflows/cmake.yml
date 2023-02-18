@@ -43,7 +43,7 @@ jobs:
     - name: Install dependencies on macOS
       if: runner.os == 'macOS'
       run: |
-        brew install check libftdi libusb libzip
+        brew install check libftdi libusb libzip pkg-config
 
     - name: Restore vcpkg cache
       if: runner.os == 'Windows'
