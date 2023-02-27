@@ -75,6 +75,17 @@ START_TEST (test_packet_decoder5) {
 }
 END_TEST
 
+START_TEST (test_packet_decoder6) {
+	char inp[] = {0xa0,0x20,0,0x03,0,0xac,0x6c,0xa5,0x69,0x83,0xe0};
+	ck_assert_int_eq(packet_decoder_proc(&pd, inp, sizeof(inp)), -2);
+	ck_assert_int_eq(pd.state, NEED_PACKET_MAGIC);
+	ck_assert_int_eq(p.packet.size, 3);
+	ck_assert_int_eq(p.packet.flags, 0x20);
+	ck_assert_int_eq(p.packet.timestamp, 0xa56cac);
+	ck_assert_int_eq(memcmp(p.packet.data, inp+8, p.packet.size), 0);
+}
+END_TEST
+
 START_TEST (test_frame_decoder1) {
 	char inp[] = {
 		0xd0, 0x1f, 0xa0, 0x00, 0x00, 0x03, 0x00, 0xba,
@@ -126,6 +137,7 @@ Suite* range_suite(void) {
 	tcase_add_test(tc_packet, test_packet_decoder3);
 	tcase_add_test(tc_packet, test_packet_decoder4);
 	tcase_add_test(tc_packet, test_packet_decoder5);
+	tcase_add_test(tc_packet, test_packet_decoder6);
 	suite_add_tcase(s, tc_packet);
 
 	tc_frame = tcase_create("Frame");

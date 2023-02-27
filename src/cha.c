@@ -469,13 +469,16 @@ static void LIBUSB_CALL cha_loop_transfer_callback(struct libusb_transfer* trans
 
 			if (transfer->actual_length > 2) {
 				/* Skip FTDI header */
-				if (frame_decoder_proc(
+				if ((ret = frame_decoder_proc(
 					&loop->fd,
 					transfer->buffer + 2,
-					transfer->actual_length - 2) < 0) {
+					transfer->actual_length - 2)) < 0) {
 
 					loop->break_loop = 1;
-					cha->error_str = loop->fd.error_str;
+
+					if (ret == -1) {
+						cha->error_str = loop->fd.error_str;
+					}
 				};
 			}
 

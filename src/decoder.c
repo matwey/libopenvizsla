@@ -4,6 +4,9 @@
 
 #include <assert.h>
 
+
+#define PACKET_FLAGS_HF0_LAST 0x20
+
 int packet_decoder_init(struct packet_decoder* pd, struct ov_packet* p, size_t size, ov_packet_decoder_callback callback, void* data) {
 	pd->packet = p;
 	pd->buf_actual_length = 0;
@@ -80,6 +83,10 @@ int packet_decoder_proc(struct packet_decoder* pd, uint8_t* buf, size_t size) {
 					pd->buf_actual_length = 0;
 					pd->state = NEED_PACKET_MAGIC;
 
+					if (pd->packet->flags & PACKET_FLAGS_HF0_LAST) {
+						return -2;
+					}
+
 					goto end;
 				}
 			} break;
@@ -132,9 +139,9 @@ int frame_decoder_proc(struct frame_decoder* fd, uint8_t* buf, size_t size) {
 				int ret = 0;
 
 				ret = packet_decoder_proc(&fd->pd, buf, psize);
-				if (ret == -1) {
+				if (ret < 0) {
 					fd->error_str = fd->pd.error_str;
-					return -1;
+					return ret;
 				}
 
 				buf += ret;
