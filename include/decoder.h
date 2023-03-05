@@ -42,7 +42,8 @@ struct frame_decoder {
 	enum frame_decoder_state {
 		NEED_FRAME_MAGIC,
 		NEED_FRAME_LENGTH,
-		NEED_FRAME_DATA
+		NEED_FRAME_DATA,
+		SKIP
 	} state;
 	size_t required_length;
 };
