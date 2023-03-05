@@ -4,6 +4,10 @@
 
 #include <assert.h>
 
+
+#define MIN(a, b) (((a) < (b)) ? (a) : (b))
+
+
 int packet_decoder_init(struct packet_decoder* pd, struct ov_packet* p, size_t size, ov_packet_decoder_callback callback, void* data) {
 	pd->packet = p;
 	pd->buf_actual_length = 0;
@@ -65,7 +69,7 @@ int packet_decoder_proc(struct packet_decoder* pd, uint8_t* buf, size_t size) {
 			} break;
 			case NEED_PACKET_DATA: {
 				const size_t required_length = pd->packet->size - pd->buf_actual_length;
-				const size_t copy = (required_length < (end - buf) ? required_length : end - buf);
+				const size_t copy = MIN(required_length, end - buf);
 
 				memcpy(pd->packet->data + pd->buf_actual_length, buf, copy);
 				pd->buf_actual_length += copy;
@@ -94,7 +98,6 @@ int frame_decoder_init(struct frame_decoder* fd, struct ov_packet* p, size_t siz
 
 	fd->error_str = NULL;
 	fd->state = NEED_FRAME_MAGIC;
-	fd->required_length = 0;
 
 	return 0;
 }
@@ -104,20 +107,24 @@ int frame_decoder_proc(struct frame_decoder* fd, uint8_t* buf, size_t size) {
 
 	while (buf != end) {
 		switch (fd->state) {
-			case NEED_FRAME_MAGIC: {
-				if (*buf++ != 0xd0) {
+			case NEED_FRAME_MAGIC: switch (*buf++) {
+				case 0x55: {
+					fd->state = NEED_BUS_FRAME_ADDR_HI;
+				} break;
+				case 0xd0: {
+					fd->state = NEED_SDRAM_FRAME_LENGTH;
+				} break;
+				default: {
 					fd->error_str = "Wrong frame magic";
 					return -1;
-				}
-
-				fd->state = NEED_FRAME_LENGTH;
+				} break;
+			}; break;
+			case NEED_SDRAM_FRAME_LENGTH: {
+				fd->sdram.required_length = ((uint16_t)(*buf++)+1)*2;
+				fd->state = NEED_SDRAM_FRAME_DATA;
 			} break;
-			case NEED_FRAME_LENGTH: {
-				fd->required_length = ((size_t)(*buf++)+1)*2;
-				fd->state = NEED_FRAME_DATA;
-			} break;
-			case NEED_FRAME_DATA: {
-				const size_t psize = (fd->required_length < end - buf ? fd->required_length : end - buf);
+			case NEED_SDRAM_FRAME_DATA: {
+				const size_t psize = MIN(fd->sdram.required_length, end - buf);
 				int ret = 0;
 
 				ret = packet_decoder_proc(&fd->pd, buf, psize);
@@ -127,11 +134,27 @@ int frame_decoder_proc(struct frame_decoder* fd, uint8_t* buf, size_t size) {
 				}
 
 				buf += ret;
-				fd->required_length -= ret;
+				fd->sdram.required_length -= ret;
 
-				if (fd->required_length == 0) {
+				if (fd->sdram.required_length == 0) {
 					fd->state = NEED_FRAME_MAGIC;
 				}
+			} break;
+			case NEED_BUS_FRAME_ADDR_HI: {
+				fd->bus.addr = ((uint16_t)(*buf++)) << 8;
+				fd->state = NEED_BUS_FRAME_ADDR_LO;
+			} break;
+			case NEED_BUS_FRAME_ADDR_LO: {
+				fd->bus.addr |= *buf++;
+				fd->state = NEED_BUS_FRAME_VALUE;
+			} break;
+			case NEED_BUS_FRAME_VALUE: {
+				fd->bus.value = *buf++;
+				fd->state = NEED_BUS_FRAME_CHECKSUM;
+			} break;
+			case NEED_BUS_FRAME_CHECKSUM: {
+				fd->bus.checksum = *buf++;
+				fd->state = NEED_FRAME_MAGIC;
 			} break;
 		}
 	}

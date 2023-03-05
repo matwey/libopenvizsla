@@ -36,14 +36,28 @@ int packet_decoder_proc(struct packet_decoder* pd, uint8_t* buf, size_t size);
 struct frame_decoder {
 	struct packet_decoder pd;
 
-	char* error_str;
-
 	enum frame_decoder_state {
 		NEED_FRAME_MAGIC,
-		NEED_FRAME_LENGTH,
-		NEED_FRAME_DATA
+		NEED_SDRAM_FRAME_LENGTH,
+		NEED_SDRAM_FRAME_DATA,
+		NEED_BUS_FRAME_ADDR_HI,
+		NEED_BUS_FRAME_ADDR_LO,
+		NEED_BUS_FRAME_VALUE,
+		NEED_BUS_FRAME_CHECKSUM
 	} state;
-	size_t required_length;
+
+	union {
+	struct {
+		uint16_t required_length;
+	} sdram;
+	struct {
+		uint16_t addr;
+		uint8_t value;
+		uint8_t checksum;
+	} bus;
+	};
+
+	char* error_str;
 };
 
 int frame_decoder_init(struct frame_decoder* fd, struct ov_packet* p, size_t size, ov_packet_decoder_callback callback, void* data);
