@@ -32,6 +32,7 @@ struct packet_decoder {
 
 int packet_decoder_init(struct packet_decoder* pd, struct ov_packet* p, size_t size, ov_packet_decoder_callback callback, void* data);
 int packet_decoder_proc(struct packet_decoder* pd, uint8_t* buf, size_t size);
+ov_packet_decoder_callback packet_decoder_set_callback(struct packet_decoder* pd, ov_packet_decoder_callback callback, void* user_data);
 
 struct frame_decoder {
 	struct packet_decoder pd;
@@ -48,5 +49,6 @@ struct frame_decoder {
 
 int frame_decoder_init(struct frame_decoder* fd, struct ov_packet* p, size_t size, ov_packet_decoder_callback callback, void* data);
 int frame_decoder_proc(struct frame_decoder* fd, uint8_t* buf, size_t size);
+ov_packet_decoder_callback frame_decoder_set_callback(struct frame_decoder* pd, ov_packet_decoder_callback callback, void* user_data);
 
 #endif // _DECODER_H

@@ -249,6 +249,11 @@ int ov_capture_dispatch(struct ov_device* ov, int count) {
 }
 
 OPENVIZSLA_EXPORT
+ov_packet_decoder_callback ov_capture_set_callback(struct ov_device* ov, ov_packet_decoder_callback callback, void* user_data) {
+	return cha_loop_set_callback(&ov->loop, callback, user_data);
+}
+
+OPENVIZSLA_EXPORT
 void ov_capture_breakloop(struct ov_device* ov) {
 	cha_loop_break(&ov->loop);
 }

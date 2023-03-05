@@ -445,7 +445,9 @@ static void cha_loop_packet_callback(struct ov_packet* packet, void* data) {
 	if (loop->max_count > 0)
 		loop->count++;
 
-	loop->callback(packet, loop->user_data);
+	if (loop->callback) {
+		loop->callback(packet, loop->user_data);
+	}
 }
 
 static void cha_loop_free_transfer(struct libusb_transfer* transfer) {
@@ -598,6 +600,15 @@ fail_libusb_submit_transfer:
 fail_libusb_alloc_transfer:
 fail_read_from_ftdi:
 	return -1;
+}
+
+ov_packet_decoder_callback cha_loop_set_callback(struct cha_loop* loop, ov_packet_decoder_callback callback, void* user_data) {
+	ov_packet_decoder_callback old_callback = loop->callback;
+
+	loop->callback = callback;
+	loop->user_data = user_data;
+
+	return old_callback;
 }
 
 void cha_loop_break(struct cha_loop* loop) {

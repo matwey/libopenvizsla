@@ -46,6 +46,7 @@ int cha_start_stream(struct cha* cha);
 int cha_stop_stream(struct cha* cha);
 int cha_loop_init(struct cha_loop* loop, struct cha* cha, struct ov_packet* packet, size_t packet_size, ov_packet_decoder_callback callback, void* user_data);
 int cha_loop_run(struct cha_loop* loop, int count);
+ov_packet_decoder_callback cha_loop_set_callback(struct cha_loop* loop, ov_packet_decoder_callback callback, void* user_data);
 void cha_loop_break(struct cha_loop* loop);
 int cha_set_reg(struct cha* cha, struct reg* reg);
 void cha_destroy(struct cha* cha);

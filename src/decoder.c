@@ -72,8 +72,10 @@ int packet_decoder_proc(struct packet_decoder* pd, uint8_t* buf, size_t size) {
 				buf += copy;
 
 				if (required_length == copy) {
-					/* Finalize packet here*/
-					pd->callback(pd->packet, pd->user_data);
+					/* Finalize packet here */
+					if (pd->callback) {
+						pd->callback(pd->packet, pd->user_data);
+					}
 
 					pd->buf_actual_length = 0;
 					pd->state = NEED_PACKET_MAGIC;
@@ -86,6 +88,15 @@ int packet_decoder_proc(struct packet_decoder* pd, uint8_t* buf, size_t size) {
 
 end:
 	return size - (end - buf);
+}
+
+ov_packet_decoder_callback packet_decoder_set_callback(struct packet_decoder* pd, ov_packet_decoder_callback callback, void* user_data) {
+	ov_packet_decoder_callback old_callback = pd->callback;
+
+	pd->callback = callback;
+	pd->user_data = user_data;
+
+	return old_callback;
 }
 
 int frame_decoder_init(struct frame_decoder* fd, struct ov_packet* p, size_t size, ov_packet_decoder_callback callback, void* data) {
@@ -137,4 +148,8 @@ int frame_decoder_proc(struct frame_decoder* fd, uint8_t* buf, size_t size) {
 	}
 
 	return size - (end - buf);
+}
+
+ov_packet_decoder_callback frame_decoder_set_callback(struct frame_decoder* fd, ov_packet_decoder_callback callback, void* user_data) {
+	return packet_decoder_set_callback(&fd->pd, callback, user_data);
 }
