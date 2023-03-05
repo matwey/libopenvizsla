@@ -7,14 +7,16 @@ union {
 	struct ov_packet packet;
 	uint8_t data[1024];
 } p;
-struct packet_decoder pd;
-struct frame_decoder fd;
 
-void callback(struct ov_packet* packet, void* data) {
-}
+struct decoder_ops ops = {
+	.packet = NULL,
+	.bus_frame = NULL
+};
+struct frame_decoder fd;
+struct packet_decoder pd;
 
 void packet_setup() {
-	ck_assert_int_eq(packet_decoder_init(&pd, &p.packet, sizeof(p), &callback, NULL), 0);
+	ck_assert_int_eq(packet_decoder_init(&pd, &p.packet, sizeof(p), &ops, NULL), 0);
 }
 
 void packet_teardown() {
@@ -22,7 +24,7 @@ void packet_teardown() {
 }
 
 void frame_setup() {
-	ck_assert_int_eq(frame_decoder_init(&fd, &p.packet, sizeof(p), &callback, NULL), 0);
+	ck_assert_int_eq(frame_decoder_init(&fd, &p.packet, sizeof(p), &ops, NULL), 0);
 }
 
 void frame_teardown() {

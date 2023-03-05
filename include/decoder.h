@@ -8,14 +8,16 @@
 
 #include <openvizsla.h>
 
+struct decoder_ops {
+	void (*packet) (void*, struct ov_packet*);
+	void (*bus_frame) (void*, uint16_t, uint8_t);
+};
+
 struct packet_decoder {
 	struct ov_packet* packet;
-	size_t   buf_actual_length;
-	size_t   buf_length;
-	char*    error_str;
 
-	ov_packet_decoder_callback callback;
-	void*    user_data;
+	struct decoder_ops ops;
+	void* user_data;
 
 	enum packet_decoder_state {
 		NEED_PACKET_MAGIC,
@@ -28,9 +30,14 @@ struct packet_decoder {
 		NEED_PACKET_TIMESTAMP_HI,
 		NEED_PACKET_DATA
 	} state;
+
+	size_t buf_actual_length;
+	size_t buf_length;
+
+	char* error_str;
 };
 
-int packet_decoder_init(struct packet_decoder* pd, struct ov_packet* p, size_t size, ov_packet_decoder_callback callback, void* data);
+int packet_decoder_init(struct packet_decoder* pd, struct ov_packet* p, size_t size, const struct decoder_ops* ops, void* user_data);
 int packet_decoder_proc(struct packet_decoder* pd, uint8_t* buf, size_t size);
 
 struct frame_decoder {
@@ -56,11 +63,9 @@ struct frame_decoder {
 		uint8_t checksum;
 	} bus;
 	};
-
-	char* error_str;
 };
 
-int frame_decoder_init(struct frame_decoder* fd, struct ov_packet* p, size_t size, ov_packet_decoder_callback callback, void* data);
+int frame_decoder_init(struct frame_decoder* fd, struct ov_packet* p, size_t size, const struct decoder_ops* ops, void* user_data);
 int frame_decoder_proc(struct frame_decoder* fd, uint8_t* buf, size_t size);
 
 #endif // _DECODER_H

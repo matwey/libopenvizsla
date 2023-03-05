@@ -7,15 +7,14 @@
 
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 
-
-int packet_decoder_init(struct packet_decoder* pd, struct ov_packet* p, size_t size, ov_packet_decoder_callback callback, void* data) {
+int packet_decoder_init(struct packet_decoder* pd, struct ov_packet* p, size_t size, const struct decoder_ops* ops, void* user_data) {
 	pd->packet = p;
+	pd->ops = *ops;
+	pd->user_data = user_data;
+	pd->state = NEED_PACKET_MAGIC;
 	pd->buf_actual_length = 0;
 	pd->buf_length = size;
-	pd->callback = callback;
-	pd->user_data = data;
 	pd->error_str = NULL;
-	pd->state = NEED_PACKET_MAGIC;
 
 	return 0;
 }
@@ -76,8 +75,10 @@ int packet_decoder_proc(struct packet_decoder* pd, uint8_t* buf, size_t size) {
 				buf += copy;
 
 				if (required_length == copy) {
-					/* Finalize packet here*/
-					pd->callback(pd->packet, pd->user_data);
+					/* Finalize packet here */
+					if (pd->ops.packet) {
+						pd->ops.packet(pd->user_data, pd->packet);
+					}
 
 					pd->buf_actual_length = 0;
 					pd->state = NEED_PACKET_MAGIC;
@@ -92,11 +93,10 @@ end:
 	return size - (end - buf);
 }
 
-int frame_decoder_init(struct frame_decoder* fd, struct ov_packet* p, size_t size, ov_packet_decoder_callback callback, void* data) {
-	if (packet_decoder_init(&fd->pd, p, size, callback, data) < 0)
+int frame_decoder_init(struct frame_decoder* fd, struct ov_packet* p, size_t size, const struct decoder_ops* ops, void* user_data) {
+	if (packet_decoder_init(&fd->pd, p, size, ops, user_data) < 0)
 		return -1;
 
-	fd->error_str = NULL;
 	fd->state = NEED_FRAME_MAGIC;
 
 	return 0;
@@ -115,7 +115,7 @@ int frame_decoder_proc(struct frame_decoder* fd, uint8_t* buf, size_t size) {
 					fd->state = NEED_SDRAM_FRAME_LENGTH;
 				} break;
 				default: {
-					fd->error_str = "Wrong frame magic";
+					fd->pd.error_str = "Wrong frame magic";
 					return -1;
 				} break;
 			}; break;
@@ -128,9 +128,8 @@ int frame_decoder_proc(struct frame_decoder* fd, uint8_t* buf, size_t size) {
 				int ret = 0;
 
 				ret = packet_decoder_proc(&fd->pd, buf, psize);
-				if (ret == -1) {
-					fd->error_str = fd->pd.error_str;
-					return -1;
+				if (ret < 0) {
+					return ret;
 				}
 
 				buf += ret;
@@ -155,6 +154,10 @@ int frame_decoder_proc(struct frame_decoder* fd, uint8_t* buf, size_t size) {
 			case NEED_BUS_FRAME_CHECKSUM: {
 				fd->bus.checksum = *buf++;
 				fd->state = NEED_FRAME_MAGIC;
+
+				if (fd->pd.ops.bus_frame) {
+					fd->pd.ops.bus_frame(fd->pd.user_data, fd->bus.addr, fd->bus.value);
+				}
 			} break;
 		}
 	}

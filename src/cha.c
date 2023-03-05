@@ -434,7 +434,7 @@ int cha_stop_stream(struct cha* cha) {
 	return 0;
 }
 
-static void cha_loop_packet_callback(struct ov_packet* packet, void* data) {
+static void cha_loop_packet_callback(void* data, struct ov_packet* packet) {
 	struct cha_loop* loop = (struct cha_loop*)data;
 
 	/* When the loop is stopped via cha_loop_break(), leftover packets may
@@ -445,7 +445,9 @@ static void cha_loop_packet_callback(struct ov_packet* packet, void* data) {
 	if (loop->max_count > 0)
 		loop->count++;
 
-	loop->callback(packet, loop->user_data);
+	if (loop->callback) {
+		loop->callback(packet, loop->user_data);
+	}
 }
 
 static void cha_loop_free_transfer(struct libusb_transfer* transfer) {
@@ -473,7 +475,7 @@ static void LIBUSB_CALL cha_loop_transfer_callback(struct libusb_transfer* trans
 					transfer->actual_length - 2) < 0) {
 
 					loop->break_loop = 1;
-					cha->error_str = loop->fd.error_str;
+					cha->error_str = loop->fd.pd.error_str;
 				};
 			}
 
@@ -515,7 +517,7 @@ static int cha_loop_read_from_ftdi(struct cha_loop* loop) {
 		ftdi->readbuffer + ftdi->readbuffer_offset,
 		ftdi->readbuffer_remaining)) < 0) {
 
-		loop->cha->error_str = loop->fd.error_str;
+		loop->cha->error_str = loop->fd.pd.error_str;
 		goto fail_decode_ftdi_readbuffer;
 	}
 
@@ -535,7 +537,12 @@ int cha_loop_init(struct cha_loop* loop, struct cha* cha, struct ov_packet* pack
 	loop->callback = callback;
 	loop->user_data = user_data;
 
-	if (frame_decoder_init(&loop->fd, packet, packet_size, &cha_loop_packet_callback, loop) < 0) {
+	struct decoder_ops ops = {
+		.packet = &cha_loop_packet_callback,
+		.bus_frame = NULL
+	};
+
+	if (frame_decoder_init(&loop->fd, packet, packet_size, &ops, loop) < 0) {
 		cha->error_str = "Frame decoder init failure";
 		goto fail_frame_decode_init;
 	}
@@ -598,6 +605,15 @@ fail_libusb_submit_transfer:
 fail_libusb_alloc_transfer:
 fail_read_from_ftdi:
 	return -1;
+}
+
+ov_packet_decoder_callback cha_loop_set_callback(struct cha_loop* loop, ov_packet_decoder_callback callback, void* user_data) {
+	ov_packet_decoder_callback old_callback = loop->callback;
+
+	loop->callback = callback;
+	loop->user_data = user_data;
+
+	return old_callback;
 }
 
 void cha_loop_break(struct cha_loop* loop) {
