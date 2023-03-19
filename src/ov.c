@@ -260,12 +260,31 @@ void ov_capture_breakloop(struct ov_device* ov) {
 
 OPENVIZSLA_EXPORT
 int ov_capture_stop(struct ov_device* ov) {
-	if (cha_stop_stream(&ov->cha) < 0) {
+	int ret = 0;
+
+	if (cha_halt_stream(&ov->cha) < 0) {
+		ret = -1;
 		ov->error_str = cha_get_error_string(&ov->cha);
-		return -1;
 	}
 
-	return 0;
+	ov_capture_set_callback(ov, NULL, NULL);
+	ov->loop.state = RUNNING;
+
+	if ((ret = cha_loop_run(&ov->loop, -1)) < 0 && ret != -HOST_READ_OFF) {
+		ret = -1;
+		ov->error_str = cha_get_error_string(&ov->cha);
+	} else {
+		ret = 0;
+	}
+
+	cha_loop_destroy(&ov->loop);
+
+	if (cha_stop_stream(&ov->cha) < 0) {
+		ret = -1;
+		ov->error_str = cha_get_error_string(&ov->cha);
+	}
+
+	return ret;
 }
 
 OPENVIZSLA_EXPORT

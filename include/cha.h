@@ -19,15 +19,24 @@ struct cha {
 
 struct cha_loop {
 	struct cha* cha;
+	struct frame_decoder fd;
+	struct libusb_transfer* transfer[3];
+	size_t active_transfers;
 
 	ov_packet_decoder_callback callback;
 	void* user_data;
 
 	int count;
 	int max_count;
-	int break_loop;
+	enum cha_loop_state {
+		RUNNING       = 0,
+		FATAL_ERROR   = 1,
+		BREAK_LOOP    = 2,
+		COUNT_LIMIT   = 3,
+		END_OF_STREAM = 4,
+		HOST_READ_OFF = 5
+	} state;
 	int complete;
-	struct frame_decoder fd;
 };
 
 int cha_init(struct cha* cha, struct fwpkg* fwpkg);
@@ -36,6 +45,7 @@ int cha_switch_config_mode(struct cha* cha);
 int cha_switch_fifo_mode(struct cha* cha);
 int cha_write_reg_by_name(struct cha* cha, enum reg_name name, uint8_t val);
 int cha_read_reg_by_name(struct cha* cha, enum reg_name name, uint8_t* val);
+int cha_cast_reg_by_name(struct cha* cha, enum reg_name name, uint8_t val);
 int cha_write_reg32_by_name(struct cha* cha, enum reg_name name, uint32_t val);
 int cha_read_reg32_by_name(struct cha* cha, enum reg_name name, uint32_t* val);
 int cha_write_ulpi(struct cha* cha, uint8_t addr, uint8_t val);
@@ -43,13 +53,16 @@ int cha_read_ulpi(struct cha* cha, uint8_t addr, uint8_t* val);
 int cha_get_usb_speed(struct cha* cha, enum ov_usb_speed* speed);
 int cha_set_usb_speed(struct cha* cha, enum ov_usb_speed speed);
 int cha_start_stream(struct cha* cha);
+int cha_halt_stream(struct cha* cha);
 int cha_stop_stream(struct cha* cha);
+int cha_set_reg(struct cha* cha, struct reg* reg);
+void cha_destroy(struct cha* cha);
+
 int cha_loop_init(struct cha_loop* loop, struct cha* cha, struct ov_packet* packet, size_t packet_size, ov_packet_decoder_callback callback, void* user_data);
 int cha_loop_run(struct cha_loop* loop, int count);
 ov_packet_decoder_callback cha_loop_set_callback(struct cha_loop* loop, ov_packet_decoder_callback callback, void* user_data);
 void cha_loop_break(struct cha_loop* loop);
-int cha_set_reg(struct cha* cha, struct reg* reg);
-void cha_destroy(struct cha* cha);
+void cha_loop_destroy(struct cha_loop* loop);
 
 const char* cha_get_error_string(struct cha* cha);
 
