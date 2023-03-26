@@ -4,6 +4,7 @@
 #include <decoder.h>
 
 #include <assert.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include <libusb.h>
@@ -19,6 +20,8 @@
 #ifndef SIO_TCIFLUSH
 #define ftdi_tcioflush(x) ftdi_usb_purge_buffers(x)
 #endif
+
+#define PACKET_FLAGS_HF0_LAST 0x20
 
 struct cha_loop_packet_callback_state {
 	size_t count;
@@ -246,6 +249,22 @@ static int cha_read_reg(struct cha* cha, uint16_t addr, uint8_t* val) {
 	return cha_transaction(cha, addr, 0, val);
 }
 
+static int cha_cast_reg(struct cha* cha, uint16_t addr, uint8_t val) {
+	uint8_t msg[5] = {0x55, 0x80 | (addr >> 8), addr & 0xFF, val, 0x00};
+
+	msg[4] = cha_transaction_checksum(msg, 4);
+
+	if (ftdi_write_data(&cha->ftdi, msg, sizeof(msg)) < 0) {
+		cha->error_str = ftdi_get_error_string(&cha->ftdi);
+		goto fail_ftdi_write_data;
+	}
+
+	return 0;
+
+fail_ftdi_write_data:
+	return -1;
+}
+
 static int cha_write_reg32(struct cha* cha, uint16_t addr, uint32_t val) {
 	for (uint16_t i = addr + 4; i != addr; --i, val = (val >> 8)) {
 		if (cha_write_reg(cha, i - 1, val & 0xFF) == -1)
@@ -274,6 +293,10 @@ int cha_write_reg_by_name(struct cha* cha, enum reg_name name, uint8_t val) {
 
 int cha_read_reg_by_name(struct cha* cha, enum reg_name name, uint8_t* val) {
 	return cha_read_reg(cha, cha->reg.addr[name], val);
+}
+
+int cha_cast_reg_by_name(struct cha* cha, enum reg_name name, uint8_t val) {
+	return cha_cast_reg(cha, cha->reg.addr[name], val);
 }
 
 int cha_write_reg32_by_name(struct cha* cha, enum reg_name name, uint32_t val) {
@@ -409,7 +432,17 @@ int cha_start_stream(struct cha* cha) {
 	if (ret == -1)
 		return ret;
 
-	ret = cha_write_reg_by_name(cha, CSTREAM_CFG, 1);
+	ret = cha_cast_reg_by_name(cha, CSTREAM_CFG, 1);
+	if (ret == -1)
+		return ret;
+
+	return 0;
+}
+
+int cha_halt_stream(struct cha* cha) {
+	int ret = 0;
+
+	ret = cha_cast_reg_by_name(cha, SDRAM_HOST_READ_GO, 0);
 	if (ret == -1)
 		return ret;
 
@@ -434,176 +467,6 @@ int cha_stop_stream(struct cha* cha) {
 	return 0;
 }
 
-static void cha_loop_packet_callback(struct ov_packet* packet, void* data) {
-	struct cha_loop* loop = (struct cha_loop*)data;
-
-	/* When the loop is stopped via cha_loop_break(), leftover packets may
-	 * follow from the read data buffer. */
-	if (loop->break_loop)
-		return;
-
-	if (loop->max_count > 0)
-		loop->count++;
-
-	loop->callback(packet, loop->user_data);
-}
-
-static void cha_loop_free_transfer(struct libusb_transfer* transfer) {
-	struct cha_loop* loop = (struct cha_loop*)transfer->user_data;
-
-	libusb_free_transfer(transfer);
-	loop->complete = 1;
-}
-
-static void LIBUSB_CALL cha_loop_transfer_callback(struct libusb_transfer* transfer) {
-	struct cha_loop* loop = (struct cha_loop*)transfer->user_data;
-	struct cha* cha = loop->cha;
-
-	int ret = 0;
-
-	switch (transfer->status) {
-		case LIBUSB_TRANSFER_COMPLETED: {
-			const int done = (loop->max_count > 0 && loop->count >= loop->max_count);
-
-			if (transfer->actual_length > 2) {
-				/* Skip FTDI header */
-				if (frame_decoder_proc(
-					&loop->fd,
-					transfer->buffer + 2,
-					transfer->actual_length - 2) < 0) {
-
-					loop->break_loop = 1;
-					cha->error_str = loop->fd.error_str;
-				};
-			}
-
-			if (!(done || loop->break_loop) && (ret = libusb_submit_transfer(transfer)) < 0) {
-				if (ret != LIBUSB_ERROR_INTERRUPTED) {
-					cha->error_str = libusb_error_name(ret);
-				}
-
-				loop->break_loop = 1;
-			}
-
-			if (done || loop->break_loop) {
-				cha_loop_free_transfer(transfer);
-			}
-		} break;
-		case LIBUSB_TRANSFER_CANCELLED: {
-			cha_loop_free_transfer(transfer);
-		} break;
-		case LIBUSB_TRANSFER_ERROR:
-		case LIBUSB_TRANSFER_TIMED_OUT:
-		case LIBUSB_TRANSFER_STALL:
-		case LIBUSB_TRANSFER_NO_DEVICE:
-		case LIBUSB_TRANSFER_OVERFLOW:
-		default: {
-			cha->error_str = libusb_error_name(transfer->status);
-			loop->break_loop = 1;
-
-			cha_loop_free_transfer(transfer);
-		} break;
-	}
-}
-
-static int cha_loop_read_from_ftdi(struct cha_loop* loop) {
-	struct ftdi_context* ftdi = &loop->cha->ftdi;
-	int ret = 0;
-
-	if ((ret = frame_decoder_proc(
-		&loop->fd,
-		ftdi->readbuffer + ftdi->readbuffer_offset,
-		ftdi->readbuffer_remaining)) < 0) {
-
-		loop->cha->error_str = loop->fd.error_str;
-		goto fail_decode_ftdi_readbuffer;
-	}
-
-	assert(ret == ftdi->readbuffer_remaining);
-
-	ftdi->readbuffer_remaining -= ret;
-	ftdi->readbuffer_offset = 0;
-
-	return 0;
-
-fail_decode_ftdi_readbuffer:
-	return -1;
-}
-
-int cha_loop_init(struct cha_loop* loop, struct cha* cha, struct ov_packet* packet, size_t packet_size, ov_packet_decoder_callback callback, void* user_data) {
-	loop->cha = cha;
-	loop->callback = callback;
-	loop->user_data = user_data;
-
-	if (frame_decoder_init(&loop->fd, packet, packet_size, &cha_loop_packet_callback, loop) < 0) {
-		cha->error_str = "Frame decoder init failure";
-		goto fail_frame_decode_init;
-	}
-
-	return 0;
-
-fail_frame_decode_init:
-	return -1;
-}
-
-int cha_loop_run(struct cha_loop* loop, int count) {
-	struct cha* cha = loop->cha;
-	struct ftdi_context* ftdi = &cha->ftdi;
-
-	struct libusb_transfer* usb_transfer;
-	int ret = 0;
-
-	loop->count = 0;
-	loop->max_count = count;
-	loop->break_loop = 0;
-	loop->complete = 0;
-
-	if (cha_loop_read_from_ftdi(loop) < 0) {
-		goto fail_read_from_ftdi;
-	}
-
-	usb_transfer = libusb_alloc_transfer(0);
-	if (!usb_transfer) {
-		cha->error_str = "Can not allocate libusb_transfer";
-		goto fail_libusb_alloc_transfer;
-	}
-
-	libusb_fill_bulk_transfer(usb_transfer, ftdi->usb_dev, ftdi->out_ep, ftdi->readbuffer, ftdi->max_packet_size, &cha_loop_transfer_callback, loop, 100);
-
-	if ((ret = libusb_submit_transfer(usb_transfer)) < 0) {
-		cha->error_str = libusb_error_name(ret);
-		goto fail_libusb_submit_transfer;
-	}
-
-	do {
-		if ((ret = libusb_handle_events_completed(ftdi->usb_ctx, &loop->complete)) < 0) {
-			loop->break_loop = 1;
-
-			if (ret != LIBUSB_ERROR_INTERRUPTED) {
-				cha->error_str = libusb_error_name(ret);
-			}
-		}
-	} while (!loop->complete);
-
-	if (loop->break_loop) {
-		if (cha->error_str)
-			return -1;
-		return -2;
-	}
-
-	return loop->count;
-
-fail_libusb_submit_transfer:
-	libusb_free_transfer(usb_transfer);
-fail_libusb_alloc_transfer:
-fail_read_from_ftdi:
-	return -1;
-}
-
-void cha_loop_break(struct cha_loop* loop) {
-	loop->break_loop = 1;
-}
-
 int cha_set_reg(struct cha* cha, struct reg* reg) {
 	int ret = 0;
 
@@ -618,6 +481,219 @@ int cha_set_reg(struct cha* cha, struct reg* reg) {
 
 void cha_destroy(struct cha* cha) {
 	ftdi_deinit(&cha->ftdi);
+}
+
+static void cha_loop_cancel_transfer(struct cha_loop* loop) {
+	for (size_t i = 0; i < sizeof(loop->transfer) / sizeof(loop->transfer[0]); ++i) {
+		libusb_cancel_transfer(loop->transfer[i]);
+	}
+}
+
+static void cha_loop_packet_callback(void* data, struct ov_packet* packet) {
+	struct cha_loop* loop = (struct cha_loop*)data;
+
+	/* When the loop is stopped via cha_loop_break(), leftover packets may
+	 * follow from the read data buffer. */
+	if (loop->state != RUNNING)
+		return;
+
+	if (loop->callback) {
+		loop->callback(packet, loop->user_data);
+	}
+
+	if (loop->max_count > 0 && loop->count++ >= loop->max_count)
+		loop->state = COUNT_LIMIT;
+
+	if (packet->flags & PACKET_FLAGS_HF0_LAST)
+		loop->state = END_OF_STREAM;
+}
+
+static void cha_loop_bus_frame_callback(void* data, uint16_t addr, uint8_t value) {
+	struct cha_loop* loop = (struct cha_loop*)data;
+	struct reg* reg = &loop->cha->reg;
+
+	if ((addr & ~(0x8000)) == reg->addr[SDRAM_HOST_READ_GO] && value == 0)
+		loop->state = HOST_READ_OFF;
+}
+
+static void LIBUSB_CALL cha_loop_transfer_callback(struct libusb_transfer* transfer) {
+	struct cha_loop* loop = (struct cha_loop*)transfer->user_data;
+	struct cha* cha = loop->cha;
+
+	int ret = 0;
+
+	switch (transfer->status) {
+		case LIBUSB_TRANSFER_COMPLETED: {
+			if (loop->state == RUNNING && transfer->actual_length > 2) {
+				/* Skip FTDI header */
+				if (frame_decoder_proc(
+					&loop->fd,
+					transfer->buffer + 2,
+					transfer->actual_length - 2) < 0) {
+
+					loop->state = FATAL_ERROR;
+					cha->error_str = loop->fd.pd.error_str;
+				};
+			}
+
+			while (loop->state == RUNNING
+				&& (ret = libusb_submit_transfer(transfer)) < 0
+				&& ret == LIBUSB_ERROR_INTERRUPTED);
+
+			if (ret < 0) {
+				loop->state = FATAL_ERROR;
+				cha->error_str = libusb_error_name(ret);
+			}
+
+			if (loop->state != RUNNING) {
+				cha_loop_cancel_transfer(loop);
+
+				loop->complete = !(--loop->active_transfers);
+			}
+		} break;
+		case LIBUSB_TRANSFER_CANCELLED: {
+			loop->complete = !(--loop->active_transfers);
+		} break;
+		case LIBUSB_TRANSFER_ERROR:
+		case LIBUSB_TRANSFER_TIMED_OUT:
+		case LIBUSB_TRANSFER_STALL:
+		case LIBUSB_TRANSFER_NO_DEVICE:
+		case LIBUSB_TRANSFER_OVERFLOW:
+		default: {
+			loop->state = FATAL_ERROR;
+			cha->error_str = libusb_error_name(transfer->status);
+
+			loop->complete = !(--loop->active_transfers);
+		} break;
+	}
+}
+
+int cha_loop_init(struct cha_loop* loop, struct cha* cha, struct ov_packet* packet, size_t packet_size, ov_packet_decoder_callback callback, void* user_data) {
+	const size_t buffer_size = 4096;
+
+	struct ftdi_context* ftdi = &cha->ftdi;
+
+	loop->cha = cha;
+	loop->callback = callback;
+	loop->user_data = user_data;
+	loop->state = RUNNING;
+
+	struct decoder_ops ops = {
+		.packet = &cha_loop_packet_callback,
+		.bus_frame = &cha_loop_bus_frame_callback
+	};
+
+	if (frame_decoder_init(&loop->fd, packet, packet_size, &ops, loop) < 0) {
+		cha->error_str = "Frame decoder init failure";
+		goto fail_frame_decode_init;
+	}
+
+	size_t i = 0;
+	while (i < sizeof(loop->transfer) / sizeof(loop->transfer[0])) {
+		struct libusb_transfer* tx = libusb_alloc_transfer(0);
+		if (tx == NULL) {
+			cha->error_str = "Can not allocate libusb_transfer";
+			goto fail_libusb_alloc_transfer;
+		}
+
+		loop->transfer[i++] = tx;
+
+		char* buffer = malloc(buffer_size);
+		if (buffer == NULL) {
+			cha->error_str = "Can not allocate transfer buffer";
+			goto fail_malloc_tranfer_buffer;
+		}
+
+		libusb_fill_bulk_transfer(tx, ftdi->usb_dev, ftdi->out_ep, buffer, buffer_size, &cha_loop_transfer_callback, loop, 1000);
+		tx->flags |= LIBUSB_TRANSFER_FREE_BUFFER;
+	}
+
+	return 0;
+
+fail_malloc_tranfer_buffer:
+fail_libusb_alloc_transfer:
+	for (; i > 0; --i) {
+		libusb_free_transfer(loop->transfer[i - 1]);
+	}
+fail_frame_decode_init:
+	return -1;
+}
+
+int cha_loop_run(struct cha_loop* loop, int count) {
+	struct cha* cha = loop->cha;
+	struct ftdi_context* ftdi = &cha->ftdi;
+
+	int ret = 0;
+
+	loop->count = 0;
+	loop->max_count = count;
+	loop->complete = 0;
+
+	if (loop->state == FATAL_ERROR) {
+		return -loop->state;
+	}
+
+	for (loop->active_transfers = 0;
+		loop->active_transfers < sizeof(loop->transfer) / sizeof(loop->transfer[0]);
+		++loop->active_transfers) {
+
+		struct libusb_transfer* tx = loop->transfer[loop->active_transfers];
+
+		if (libusb_submit_transfer(tx) < 0) {
+			loop->state = FATAL_ERROR;
+			cha->error_str = libusb_error_name(ret);
+
+			break;
+		}
+	}
+
+	if (loop->state != RUNNING) {
+		cha_loop_cancel_transfer(loop);
+	}
+
+	do {
+		struct timeval timeout = {1, 0};
+
+		if ((ret = libusb_handle_events_timeout_completed(ftdi->usb_ctx, &timeout, &loop->complete)) < 0
+			&& ret != LIBUSB_ERROR_INTERRUPTED
+			&& ret != LIBUSB_ERROR_TIMEOUT) {
+
+			loop->state = FATAL_ERROR;
+			cha->error_str = libusb_error_name(ret);
+		}
+	} while (!loop->complete);
+
+	assert(loop->state != RUNNING);
+	assert(loop->active_transfers == 0);
+
+	if (loop->state != COUNT_LIMIT) {
+		return -loop->state;
+	}
+
+	return loop->count;
+}
+
+ov_packet_decoder_callback cha_loop_set_callback(struct cha_loop* loop, ov_packet_decoder_callback callback, void* user_data) {
+	ov_packet_decoder_callback old_callback = loop->callback;
+
+	loop->callback = callback;
+	loop->user_data = user_data;
+
+	return old_callback;
+}
+
+void cha_loop_break(struct cha_loop* loop) {
+	loop->state = BREAK_LOOP;
+
+	cha_loop_cancel_transfer(loop);
+}
+
+void cha_loop_destroy(struct cha_loop* loop) {
+	assert(loop->active_transfers == 0);
+
+	for (size_t i = 0; i < sizeof(loop->transfer) / sizeof(loop->transfer[0]); ++i) {
+		libusb_free_transfer(loop->transfer[i]);
+	}
 }
 
 const char* cha_get_error_string(struct cha* cha) {

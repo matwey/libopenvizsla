@@ -7,14 +7,16 @@ union {
 	struct ov_packet packet;
 	uint8_t data[1024];
 } p;
-struct packet_decoder pd;
-struct frame_decoder fd;
 
-void callback(struct ov_packet* packet, void* data) {
-}
+struct decoder_ops ops = {
+	.packet = NULL,
+	.bus_frame = NULL
+};
+struct frame_decoder fd;
+struct packet_decoder pd;
 
 void packet_setup() {
-	ck_assert_int_eq(packet_decoder_init(&pd, &p.packet, sizeof(p), &callback, NULL), 0);
+	ck_assert_int_eq(packet_decoder_init(&pd, &p.packet, sizeof(p), &ops, NULL), 0);
 }
 
 void packet_teardown() {
@@ -22,7 +24,7 @@ void packet_teardown() {
 }
 
 void frame_setup() {
-	ck_assert_int_eq(frame_decoder_init(&fd, &p.packet, sizeof(p), &callback, NULL), 0);
+	ck_assert_int_eq(frame_decoder_init(&fd, &p.packet, sizeof(p), &ops, NULL), 0);
 }
 
 void frame_teardown() {
@@ -115,6 +117,24 @@ START_TEST (test_frame_decoder2) {
 }
 END_TEST
 
+START_TEST (test_frame_decoder3) {
+	char inp[] = {
+		0x55, 0x8c, 0x28, 0x00, 0x09, 0xd0, 0x1f, 0xa0,
+		0x00, 0x00, 0x03, 0x00, 0xba, 0x6e, 0x6e, 0x69,
+		0xd7, 0x60, 0xa0, 0x00, 0x00, 0x01, 0x00, 0x22,
+		0x75, 0x6e, 0x5a, 0xa0, 0x00, 0x00, 0x03, 0x00,
+		0xe2, 0xc1, 0x75, 0x69, 0xd7, 0x60, 0xa0, 0x00,
+		0x00, 0x01, 0x00, 0x4a, 0xc8, 0x75, 0x5a, 0xa0,
+		0x00, 0x00, 0x03, 0x00, 0x0a, 0x15, 0x7d, 0x69,
+		0xd7, 0x60, 0xa0, 0x00, 0x00, 0x01, 0x00, 0x72,
+		0x1b, 0x7d, 0x5a, 0xa0, 0x00, 0x00, 0x03
+	};
+
+	ck_assert_int_eq(frame_decoder_proc(&fd, inp, sizeof(inp)), sizeof(inp));
+	ck_assert_int_eq(fd.state, NEED_FRAME_MAGIC);
+}
+END_TEST
+
 Suite* range_suite(void) {
 	Suite *s;
 	TCase *tc_packet;
@@ -135,6 +155,7 @@ Suite* range_suite(void) {
 	tcase_add_checked_fixture(tc_frame, frame_setup, frame_teardown);
 	tcase_add_test(tc_frame, test_frame_decoder1);
 	tcase_add_test(tc_frame, test_frame_decoder2);
+	tcase_add_test(tc_frame, test_frame_decoder3);
 	suite_add_tcase(s, tc_frame);
 
 	return s;
