@@ -21,8 +21,6 @@
 #define ftdi_tcioflush(x) ftdi_usb_purge_buffers(x)
 #endif
 
-#define PACKET_FLAGS_HF0_LAST 0x20
-
 struct cha_loop_packet_callback_state {
 	size_t count;
 	ov_packet_decoder_callback user_callback;
@@ -504,7 +502,7 @@ static void cha_loop_packet_callback(void* data, struct ov_packet* packet) {
 	if (loop->max_count > 0 && loop->count++ >= loop->max_count)
 		loop->state = COUNT_LIMIT;
 
-	if (packet->flags & PACKET_FLAGS_HF0_LAST)
+	if (packet->flags & OV_FLAGS_HF0_LAST)
 		loop->state = END_OF_STREAM;
 }
 

@@ -25,7 +25,7 @@ START_TEST (test_fwpkg_size1) {
 	ret = fwpkg_init_from_file(&fwpkg, PROJECT_ROOT "/ov3.fwpkg");
 	ck_assert_int_eq(ret, 0);
 	ck_assert_uint_eq(fwpkg_map_size(&fwpkg), 2080);
-	ck_assert_uint_eq(fwpkg_bitstream_size(&fwpkg), 340972);
+	ck_assert_uint_eq(fwpkg_bitstream_size(&fwpkg), 340692);
 	fwpkg_destroy(&fwpkg);
 }
 END_TEST

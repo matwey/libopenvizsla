@@ -19,15 +19,15 @@ struct packet_decoder {
 	struct decoder_ops ops;
 	void* user_data;
 
+	uint64_t cumulative_ts;
+	int ts_byte;
+	int ts_length;
 	enum packet_decoder_state {
 		NEED_PACKET_MAGIC,
-		NEED_PACKET_FLAGS_LO,
-		NEED_PACKET_FLAGS_HI,
+		NEED_PACKET_FLAGS,
 		NEED_PACKET_LENGTH_LO,
 		NEED_PACKET_LENGTH_HI,
-		NEED_PACKET_TIMESTAMP_LO,
-		NEED_PACKET_TIMESTAMP_ME,
-		NEED_PACKET_TIMESTAMP_HI,
+		NEED_PACKET_TIMESTAMP,
 		NEED_PACKET_DATA
 	} state;
 

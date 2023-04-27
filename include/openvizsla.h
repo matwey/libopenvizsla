@@ -25,9 +25,9 @@ struct
 #endif
 ov_packet {
 	uint8_t  magic;
-	uint16_t flags;
+	uint8_t flags;
 	uint16_t size;
-	uint32_t timestamp : 24;
+	uint64_t timestamp;
 	uint8_t  data[];
 };
 #ifdef _MSC_VER
@@ -41,6 +41,18 @@ enum ov_usb_speed {
 	OV_FULL_SPEED = 0x49,
 	OV_HIGH_SPEED = 0x48
 };
+
+#define OV_FLAGS_HF0_ERR   0x01
+#define OV_FLAGS_HF0_OVF   0x02
+#define OV_FLAGS_HF0_TRUNC 0x08
+#define OV_FLAGS_HF0_FIRST 0x10
+#define OV_FLAGS_HF0_LAST  0x20
+
+#define OV_MAX_PACKET_SIZE 1027
+
+static inline uint16_t ov_packet_captured_size(struct ov_packet* p) {
+    return (p->flags & OV_FLAGS_HF0_TRUNC) ? OV_MAX_PACKET_SIZE : p->size;
+}
 
 OPENVIZSLA_EXPORT struct ov_device* ov_new(const char* firmware_filename);
 OPENVIZSLA_EXPORT int  ov_open(struct ov_device* ov);

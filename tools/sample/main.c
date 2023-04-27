@@ -3,13 +3,14 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <inttypes.h>
 #include <ftdi.h>
 #include <signal.h>
 
 #include <openvizsla.h>
 
 static void packet_handler(struct ov_packet* packet, void* data) {
-	printf("[%04x] Received %d bytes at %d:", packet->flags, packet->size, packet->timestamp);
+	printf("[%02x] Received %d bytes at %" PRId64 ":", packet->flags, packet->size, packet->timestamp);
 	for (int i = 0; i < packet->size; ++i)
 		printf(" %02x", packet->data[i]);
 	printf("\n");
