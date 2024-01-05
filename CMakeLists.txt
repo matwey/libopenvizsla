@@ -71,7 +71,7 @@ add_dependencies(openvizsla generated_gperf)
 #    If any interfaces have been removed or changed since the last public release,
 #        then set age to 0.
 #
-# set_target_properties(openvizsla PROPERTIES VERSION c.r.a SOVERSION c)
+# set_target_properties(openvizsla PROPERTIES VERSION c-a.a.r SOVERSION c-a)
 #
 set_target_properties(openvizsla PROPERTIES VERSION 2.0.1 SOVERSION 2)
 target_compile_definitions(openvizsla PUBLIC "_XOPEN_SOURCE;_XOPEN_SOURCE_EXTENDED")
