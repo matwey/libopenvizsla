@@ -71,7 +71,7 @@ int packet_decoder_proc(struct packet_decoder* pd, uint8_t* buf, size_t size) {
 				}
 			} break;
 			case NEED_PACKET_DATA: {
-				const size_t required_length = pd->packet->size - pd->buf_actual_length;
+				const size_t required_length = ov_packet_captured_size(pd->packet) - pd->buf_actual_length;
 				const size_t copy = MIN(required_length, end - buf);
 
 				memcpy(pd->packet->data + pd->buf_actual_length, buf, copy);

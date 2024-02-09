@@ -11,7 +11,7 @@
 
 static void packet_handler(struct ov_packet* packet, void* data) {
 	printf("[%02x] Received %d bytes at %" PRId64 ":", packet->flags, packet->size, packet->timestamp);
-	for (int i = 0; i < packet->size; ++i)
+	for (int i = 0; i < ov_packet_captured_size(packet); ++i)
 		printf(" %02x", packet->data[i]);
 	printf("\n");
 }
