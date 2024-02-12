@@ -21,6 +21,8 @@
 #define ftdi_tcioflush(x) ftdi_usb_purge_buffers(x)
 #endif
 
+#define MIN(a, b) (((a) < (b)) ? (a) : (b))
+
 struct cha_loop_packet_callback_state {
 	size_t count;
 	ov_packet_decoder_callback user_callback;
@@ -517,21 +519,27 @@ static void cha_loop_bus_frame_callback(void* data, uint16_t addr, uint8_t value
 static void LIBUSB_CALL cha_loop_transfer_callback(struct libusb_transfer* transfer) {
 	struct cha_loop* loop = (struct cha_loop*)transfer->user_data;
 	struct cha* cha = loop->cha;
+	struct ftdi_context* ftdi = &cha->ftdi;
 
 	int ret = 0;
+	size_t offset = 0;
 
 	switch (transfer->status) {
 		case LIBUSB_TRANSFER_COMPLETED: {
-			if (loop->state == RUNNING && transfer->actual_length > 2) {
-				/* Skip FTDI header */
-				if (frame_decoder_proc(
-					&loop->fd,
-					transfer->buffer + 2,
-					transfer->actual_length - 2) < 0) {
+			while (loop->state == RUNNING && offset < transfer->actual_length) {
+				size_t packet_length = MIN(transfer->actual_length - offset, ftdi->max_packet_size);
+				if (packet_length > 2) {
+					/* Skip FTDI header */
+					if (frame_decoder_proc(
+						&loop->fd,
+						transfer->buffer + offset + 2,
+						packet_length - 2) < 0) {
 
-					loop->state = FATAL_ERROR;
-					cha->error_str = loop->fd.pd.error_str;
-				};
+						loop->state = FATAL_ERROR;
+						cha->error_str = loop->fd.pd.error_str;
+					};
+				}
+				offset += packet_length;
 			}
 
 			while (loop->state == RUNNING

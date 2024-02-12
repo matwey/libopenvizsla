@@ -5,7 +5,7 @@
 
 union {
 	struct ov_packet packet;
-	uint8_t data[1024];
+	uint8_t data[sizeof(struct ov_packet) + OV_MAX_PACKET_SIZE];
 } p;
 
 struct decoder_ops ops = {
@@ -80,6 +80,19 @@ START_TEST (test_packet_decoder5) {
 }
 END_TEST
 
+START_TEST (test_packet_decoder_truncated) {
+	char inp[5 + OV_MAX_PACKET_SIZE + 1] = {
+		0xa0, OV_FLAGS_HF0_TRUNC,
+		(OV_MAX_PACKET_SIZE + 1) & 0xff, ((OV_MAX_PACKET_SIZE + 1) >> 8) & 0x1f,
+	};
+	ck_assert_int_eq(packet_decoder_proc(&pd, inp, sizeof(inp)), sizeof(inp) - 1);
+	ck_assert_int_eq(pd.state, NEED_PACKET_MAGIC);
+	ck_assert_int_eq(p.packet.size, OV_MAX_PACKET_SIZE+1);
+	ck_assert_int_eq(ov_packet_captured_size(&p.packet), OV_MAX_PACKET_SIZE);
+	ck_assert_int_eq(memcmp(p.packet.data, inp+5, OV_MAX_PACKET_SIZE), 0);
+}
+END_TEST
+
 START_TEST (test_frame_decoder1) {
 	char inp[] = {
 		0xd0, 0x1f, 0xa0, 0x00, 0x00, 0x03, 0x00, 0xba,
@@ -149,6 +162,7 @@ Suite* range_suite(void) {
 	tcase_add_test(tc_packet, test_packet_decoder3);
 	tcase_add_test(tc_packet, test_packet_decoder4);
 	tcase_add_test(tc_packet, test_packet_decoder5);
+	tcase_add_test(tc_packet, test_packet_decoder_truncated);
 	suite_add_tcase(s, tc_packet);
 
 	tc_frame = tcase_create("Frame");
