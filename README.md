@@ -1,5 +1,4 @@
 [![CMake](https://github.com/matwey/libopenvizsla/actions/workflows/cmake.yml/badge.svg)](https://github.com/matwey/libopenvizsla/actions/workflows/cmake.yml)
-[![Build Status](https://semaphoreci.com/api/v1/matwey/libopenvizsla/branches/master/badge.svg)](https://semaphoreci.com/matwey/libopenvizsla)
 [![CodeQL](https://github.com/matwey/libopenvizsla/actions/workflows/codeql.yml/badge.svg)](https://github.com/matwey/libopenvizsla/actions/workflows/codeql.yml)
 
 # libopenvizsla
