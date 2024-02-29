@@ -394,7 +394,7 @@ static int start_capture(enum ov_usb_speed speed, uint32_t linktype, bool filter
 
 static enum wireshark_version wireshark_version_from_string(const char* version) {
 	int major, minor;
-	if (sscanf(version, "%d.%d", &major, &minor) == 2) {
+	if (version && sscanf(version, "%d.%d", &major, &minor) == 2) {
 		if (major >= 4) {
 			return WIRESHARK_VERSION_4_0_OR_NEWER;
 		} else if ((major == 3) && (minor >= 1)) {
