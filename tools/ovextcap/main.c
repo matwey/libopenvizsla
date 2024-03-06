@@ -23,7 +23,7 @@
 
 #include <openvizsla.h>
 
-#define EXTCAP_VERSION_STR "0.0.2"
+#define EXTCAP_VERSION_STR "0.0.3"
 
 #define EXTCAP_INTERFACE_DEPRECATED "ov"
 #define EXTCAP_INTERFACE_LOW_SPEED "ov-low"
@@ -77,6 +77,7 @@ struct _record_list {
 };
 
 struct handler_data {
+	struct ov_device *ov;/**< Capture device */
 	FILE* out;           /**< Output file. Set to NULL if capture stopped from Wireshark (broken pipe). */
 	FILE* debug;         /**< Debug output file. NULL if not writing to debug file. */
 	uint32_t utc_ts;     /**< Seconds since epoch */
@@ -300,6 +301,11 @@ static void packet_handler(struct ov_packet* packet, void* user_data) {
 
 		write_packet(&pkt, &data->debug);
 		filter_packet(&pkt, data);
+
+		/* Break out of the capture loop if output pipe breaks */
+		if (!data->out) {
+			ov_capture_breakloop(data->ov);
+		}
 	}
 }
 
@@ -308,31 +314,30 @@ static int start_capture(enum ov_usb_speed speed, uint32_t linktype, bool filter
 	int ret;
 	struct timespec ts;
 	struct handler_data data;
-	struct ov_device* ov;
 	union {
 		struct ov_packet packet;
 		char buf[1024];
 	} p;
 
-	ov = ov_new(NULL);
-	if (!ov) {
+	data.ov = ov_new(NULL);
+	if (!data.ov) {
 		fprintf(stderr, "Cannot create ov_device handler\n");
 		return 1;
 	}
 
-	ret = ov_open(ov);
+	ret = ov_open(data.ov);
 	if (ret < 0) {
-		fprintf(stderr, "%s: %s\n", "Cannot open OpenVizsla device", ov_get_error_string(ov));
+		fprintf(stderr, "%s: %s\n", "Cannot open OpenVizsla device", ov_get_error_string(data.ov));
 
-		ov_free(ov);
+		ov_free(data.ov);
 		return 1;
 	}
 
-	ret = ov_set_usb_speed(ov, speed);
+	ret = ov_set_usb_speed(data.ov, speed);
 	if (ret < 0) {
-		fprintf(stderr, "%s: %s\n", "Cannot set USB speed", ov_get_error_string(ov));
+		fprintf(stderr, "%s: %s\n", "Cannot set USB speed", ov_get_error_string(data.ov));
 
-		ov_free(ov);
+		ov_free(data.ov);
 		return 1;
 	}
 
@@ -340,7 +345,7 @@ static int start_capture(enum ov_usb_speed speed, uint32_t linktype, bool filter
 	if (!data.out) {
 		fprintf(stderr, "Cannot open fifo for writing\n");
 
-		ov_free(ov);
+		ov_free(data.ov);
 		return 1;
 	}
 	data.debug = debug_pcap;
@@ -364,37 +369,32 @@ static int start_capture(enum ov_usb_speed speed, uint32_t linktype, bool filter
 	write_pcap_header(&data.out, linktype);
 	write_pcap_header(&data.debug, linktype);
 
-	ret = ov_capture_start(ov, &p.packet, sizeof(p), &packet_handler, &data);
+	ret = ov_capture_start(data.ov, &p.packet, sizeof(p), &packet_handler, &data);
 	if (ret < 0) {
-		fprintf(stderr, "%s: %s\n", "Cannot start capture", ov_get_error_string(ov));
+		fprintf(stderr, "%s: %s\n", "Cannot start capture", ov_get_error_string(data.ov));
 
 		close_file(&data.out);
 		close_file(&data.debug);
-		ov_free(ov);
+		ov_free(data.ov);
 		return 1;
 	}
 
-	ret = 0;
-	/* Keep running until stopped in Wireshark (output fifo gets closed) */
-	while (data.out) {
-		ret = ov_capture_dispatch(ov, 1);
-		if (ret == -1) {
-			fprintf(stderr, "%s: %s\n", "Cannot dispatch capture", ov_get_error_string(ov));
-			break;
-		}
+	ret = ov_capture_dispatch(data.ov, 0);
+	if (ret == -1) {
+		fprintf(stderr, "%s: %s\n", "Cannot dispatch capture", ov_get_error_string(data.ov));
 	}
 
 	discard_queued_packets(&data);
 	close_file(&data.out);
 	close_file(&data.debug);
-	ov_capture_stop(ov);
-	ov_free(ov);
+	ov_capture_stop(data.ov);
+	ov_free(data.ov);
 	return ret;
 }
 
 static enum wireshark_version wireshark_version_from_string(const char* version) {
 	int major, minor;
-	if (sscanf(version, "%d.%d", &major, &minor) == 2) {
+	if (version && sscanf(version, "%d.%d", &major, &minor) == 2) {
 		if (major >= 4) {
 			return WIRESHARK_VERSION_4_0_OR_NEWER;
 		} else if ((major == 3) && (minor >= 1)) {
