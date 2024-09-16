@@ -402,21 +402,24 @@ int cha_set_usb_speed(struct cha* cha, enum ov_usb_speed speed) {
 }
 
 int cha_start_stream(struct cha* cha) {
+	const uint32_t ring_base = 0;
+	const uint32_t ring_end = 0x01000000;
+
 	int ret = 0;
 
-	ret = cha_write_reg32_by_name(cha, SDRAM_SINK_RING_BASE, 0);
+	ret = cha_write_reg32_by_name(cha, SDRAM_SINK_RING_BASE, ring_base);
 	if (ret == -1)
 		return ret;
 
-	ret = cha_write_reg32_by_name(cha, SDRAM_SINK_RING_END, 0x01000000);
+	ret = cha_write_reg32_by_name(cha, SDRAM_SINK_RING_END, ring_end);
 	if (ret == -1)
 		return ret;
 
-	ret = cha_write_reg32_by_name(cha, SDRAM_HOST_READ_RING_BASE, 0);
+	ret = cha_write_reg32_by_name(cha, SDRAM_HOST_READ_RING_BASE, ring_base);
 	if (ret == -1)
 		return ret;
 
-	ret = cha_write_reg32_by_name(cha, SDRAM_HOST_READ_RING_END, 0x01000000);
+	ret = cha_write_reg32_by_name(cha, SDRAM_HOST_READ_RING_END, ring_end);
 	if (ret == -1)
 		return ret;
 
@@ -424,15 +427,33 @@ int cha_start_stream(struct cha* cha) {
 	if (ret == -1)
 		return ret;
 
+	/*
+	 * SDRAM SINK takes octets from CSTREAM and writes the data to SDRAM
+	 * using internal FIFO. When SDRAM_SINK_GO is set to 1, then
+	 * SDRAM_SINK_WPTR is reset to SDRAM_SINK_RING_BASE.
+	 */
+
 	ret = cha_write_reg_by_name(cha, SDRAM_SINK_GO, 1);
 	if (ret == -1)
 		return ret;
 
-	ret = cha_write_reg_by_name(cha, SDRAM_HOST_READ_GO, 1);
+	/*
+	 * CSTREAM takes data from the USB phy and forward the data as 0xA0
+	 * packages to SDRAM SINK
+	 */
+
+	ret = cha_write_reg_by_name(cha, CSTREAM_CFG, 1);
 	if (ret == -1)
 		return ret;
 
-	ret = cha_cast_reg_by_name(cha, CSTREAM_CFG, 1);
+	/*
+	 * SDRAM HOST READ takes existing data from SDRAM and forms 0xD0
+	 * packages via internal FIFO. When SDRAM_HOST_READ_GO is set to 1,
+	 * then SDRAM_HOST_READ_RPTR_STATUS is reset to
+	 * SDRAM_HOST_READ_RING_BASE.
+	 */
+
+	ret = cha_cast_reg_by_name(cha, SDRAM_HOST_READ_GO, 1);
 	if (ret == -1)
 		return ret;
 
@@ -456,11 +477,11 @@ int cha_stop_stream(struct cha* cha) {
 	if (ret == -1)
 		return ret;
 
-	ret = cha_write_reg_by_name(cha, SDRAM_SINK_GO, 0);
+	ret = cha_write_reg_by_name(cha, CSTREAM_CFG, 0);
 	if (ret == -1)
 		return ret;
 
-	ret = cha_write_reg_by_name(cha, CSTREAM_CFG, 0);
+	ret = cha_write_reg_by_name(cha, SDRAM_SINK_GO, 0);
 	if (ret == -1)
 		return ret;
 
