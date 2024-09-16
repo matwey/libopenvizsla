@@ -1,6 +1,6 @@
 cmake_minimum_required (VERSION 3.1)
 # CXX language is required by GenerateExportHeader
-project(libopenvizsla LANGUAGES C CXX VERSION 0.1.2)
+project(libopenvizsla LANGUAGES C CXX VERSION 0.2.0)
 if(NOT (CMAKE_VERSION VERSION_LESS "3.14.0"))
 	cmake_policy(SET CMP0087 NEW)
 endif()
@@ -73,7 +73,7 @@ add_dependencies(openvizsla generated_gperf)
 #
 # set_target_properties(openvizsla PROPERTIES VERSION c-a.a.r SOVERSION c-a)
 #
-set_target_properties(openvizsla PROPERTIES VERSION 2.0.1 SOVERSION 2)
+set_target_properties(openvizsla PROPERTIES VERSION 3.0.0 SOVERSION 3)
 target_compile_definitions(openvizsla PUBLIC "_XOPEN_SOURCE;_XOPEN_SOURCE_EXTENDED")
 
 generate_export_header(openvizsla)
