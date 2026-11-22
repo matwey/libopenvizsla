@@ -1,0 +1,26 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+  "name": "libopenvizsla",
+  "version": "0.2.0",
+  "description": "An attempt to reimplement OpenVizsla host software in plain C.",
+  "dependencies": [
+    "check",
+    {
+      "name": "gperf",
+      "host": true
+    },
+    "libftdi1",
+    {
+      "name": "libusb",
+      "default-features": false
+    },
+    {
+      "name": "libzip",
+      "default-features": false
+    },
+    {
+      "name": "getopt-win32",
+      "platform": "windows"
+    }
+  ]
+}
