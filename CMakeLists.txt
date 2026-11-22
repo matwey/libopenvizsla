@@ -54,7 +54,7 @@ list(APPEND SOURCES
 list(APPEND LIBRARIES
 	LibUSB1::usb
 	LibFTDI1::ftdi1
-	LibZip::zip)
+	libzip::zip)
 
 add_library(openvizsla ${SOURCES})
 target_link_libraries(openvizsla ${LIBRARIES})
