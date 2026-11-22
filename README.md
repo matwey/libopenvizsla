@@ -1,5 +1,4 @@
 [![CMake](https://github.com/matwey/libopenvizsla/actions/workflows/cmake.yml/badge.svg)](https://github.com/matwey/libopenvizsla/actions/workflows/cmake.yml)
-[![CodeQL](https://github.com/matwey/libopenvizsla/actions/workflows/codeql.yml/badge.svg)](https://github.com/matwey/libopenvizsla/actions/workflows/codeql.yml)
 
 # libopenvizsla
 An attempt to reimplement [OpenVizsla](http://openvizsla.org/) host software in plain C.
