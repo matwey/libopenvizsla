@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.1)
+cmake_minimum_required (VERSION 3.5)
 # CXX language is required by GenerateExportHeader
 project(libopenvizsla LANGUAGES C CXX VERSION 0.2.0)
 if(NOT (CMAKE_VERSION VERSION_LESS "3.14.0"))
