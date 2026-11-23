@@ -1,99 +1,142 @@
-name: CMake
+name: Build project and run ctest
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [ "master" ]
+    tags: [ "*" ]
+  pull_request:
+    branches: [ "master" ]
+
+env:
+  BUILD_TYPE: Release
 
 jobs:
-  build:
-    runs-on: ${{matrix.os}}
+  linux:
+    name: Build on Linux
+    runs-on: ubuntu-latest
 
-    env:
-      VCPKG_ROOT: 'C:\vcpkg'
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends --no-install-suggests autoconf autoconf-archive automake cmake libtool pkg-config
+
+    - name: Restore vcpkg cache
+      uses: actions/cache/restore@v6
+      with:
+        path: ~/.cache/vcpkg/archives
+        key: vcpkg-${{runner.os}}-${{runner.arch}}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}
+        restore-keys: vcpkg-${{runner.os}}-${{runner.arch}}-
+
+    - name: Configure CMake
+      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DBUILD_SHARED_LIBS:BOOL=on -DCMAKE_TOOLCHAIN_FILE="$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
+
+    - name: Build
+      run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}} --parallel $(nproc) --verbose
+
+    - name: Test
+      run: ctest --test-dir ${{github.workspace}}/build --build-config ${{env.BUILD_TYPE}} --verbose
+
+    - name: Save vcpkg cache
+      uses: actions/cache/save@v6
+      with:
+        path: ~/.cache/vcpkg/archives
+        key: vcpkg-${{runner.os}}-${{runner.arch}}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}
+
+  macos:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
 
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
-        build_type: [Release, Debug]
+        os: [macos-15, macos-15-intel]
+
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: Install dependencies
+      run: brew install autoconf autoconf-archive automake libtool pkg-config
+
+    - name: Restore vcpkg cache
+      uses: actions/cache/restore@v6
+      with:
+        path: ~/.cache/vcpkg/archives
+        key: vcpkg-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}
+        restore-keys: vcpkg-${{ runner.os }}-${{ runner.arch }}-
+
+    - name: Configure CMake
+      run: cmake -B ${GITHUB_WORKSPACE}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DBUILD_SHARED_LIBS:BOOL=on -DCMAKE_TOOLCHAIN_FILE="$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
+
+    - name: Build
+      run: cmake --build ${GITHUB_WORKSPACE}/build --config ${{env.BUILD_TYPE}} --parallel $(sysctl -n hw.ncpu) --verbose
+
+    - name: Test
+      run: ctest --test-dir ${GITHUB_WORKSPACE}/build --build-config ${{env.BUILD_TYPE}} --verbose
+
+    - name: Save vcpkg cache
+      uses: actions/cache/save@v6
+      with:
+        path: ~/.cache/vcpkg/archives
+        key: vcpkg-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}
+
+  windows:
+    name: Build and package for Windows ${{matrix.arch}}
+    runs-on: windows-latest
+
+    permissions:
+      contents: write
+
+    strategy:
+      matrix:
         include:
-          - os: windows-2019
-            arch: x64
-            build_type: Release
+          - arch: x64
             triplet: x64-windows
-          - os: windows-2019
-            arch: x64
-            build_type: Debug
-            triplet: x64-windows
-          - os: windows-2019
-            arch: Win32
-            build_type: Release
-            triplet: x86-windows
-          - os: windows-2019
-            arch: Win32
-            build_type: Debug
+          - arch: Win32
             triplet: x86-windows
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v7
 
-    - name: Install dependencies on Linux
-      if: runner.os == 'Linux'
+    - name: Set vcpkg binary cache path
       run: |
-        sudo apt-get update
-        sudo apt-get install -y cmake check gperf libftdi1-dev libzip-dev
-
-    - name: Install dependencies on macOS
-      if: runner.os == 'macOS'
-      run: |
-        brew install check libftdi libusb libzip pkg-config
+        New-Item -ItemType Directory -Force "$env:APPDATA\vcpkg\archives" | Out-Null
+        echo "VCPKG_DEFAULT_BINARY_CACHE=$env:APPDATA\vcpkg\archives" >> "$env:GITHUB_ENV"
 
     - name: Restore vcpkg cache
-      if: runner.os == 'Windows'
-      uses: actions/cache@v3
+      uses: actions/cache/restore@v6
       with:
-        path: |
-          ${{env.VCPKG_ROOT}}
-          !${{env.VCPKG_ROOT}}/buildtrees
-          !${{env.VCPKG_ROOT}}/packages
-          !${{env.VCPKG_ROOT}}/downloads
-          !${{env.VCPKG_ROOT}}/installed
-        key: |
-          ${{matrix.os}}-${{matrix.triplet}}
-
-    - name: Install dependencies on Windows
-      if: runner.os == 'Windows'
-      run: |
-        git --git-dir="${{env.VCPKG_ROOT}}" fetch origin
-        git --git-dir="${{env.VCPKG_ROOT}}" checkout 73d50c1b8290af45cb5922d721b74946c058481c
-        vcpkg install --triplet ${{matrix.triplet}} check gperf libftdi1 libusb libzip[core] getopt-win32
+        path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
+        key: vcpkg-${{runner.os}}-${{runner.arch}}-${{matrix.triplet}}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}
+        restore-keys: vcpkg-${{runner.os}}-${{runner.arch}}-${{matrix.triplet}}-
 
     - name: Configure CMake
-      if: runner.os != 'Windows'
-      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DBUILD_SHARED_LIBS:BOOL=on -DCMAKE_VERBOSE_MAKEFILE:BOOL=on
-
-    - name: Configure CMake on Windows
-      if: runner.os == 'Windows'
-      # "C:/does/not/exists/pkg-config.exe" is a workaround for cmake 3.23
-      run: cmake -A ${{matrix.arch}} -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DBUILD_SHARED_LIBS:BOOL=on -DCMAKE_VERBOSE_MAKEFILE:BOOL=on -DCMAKE_TOOLCHAIN_FILE=${{env.VCPKG_ROOT}}/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=${{matrix.triplet}} -DPKG_CONFIG_EXECUTABLE="C:/does/not/exists/pkg-config.exe"
+      run: cmake -A ${{matrix.arch}} -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DBUILD_SHARED_LIBS:BOOL=on -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT\scripts\buildsystems\vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=${{matrix.triplet}} -DVCPKG_HOST_TRIPLET=x64-windows -DVCPKG_USE_HOST_TOOLS=ON
 
     - name: Build
-      run: cmake --build ${{github.workspace}}/build --config ${{matrix.build_type}}
+      run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}} --verbose
 
-    - name: Build package on Windows
-      if: runner.os == 'Windows'
-      run: cmake --build ${{github.workspace}}/build --config ${{matrix.build_type}} --target package
+    - name: Test
+      run: ctest --test-dir ${{github.workspace}}/build --build-config ${{env.BUILD_TYPE}} --verbose
+
+    - name: Build package
+      run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}} --target package
 
     - name: Store the package
-      if: runner.os == 'Windows'
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
-        name: ${{matrix.build_type}} package for Windows ${{matrix.arch}}
+        name: package for Windows ${{matrix.arch}}
         path: build/libopenvizsla-*.zip
 
     - name: Release the package
-      if: runner.os == 'Windows' && matrix.build_type == 'Release' && startsWith(github.ref, 'refs/tags/')
-      uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v2
       with:
         files: build/libopenvizsla-*.zip
 
-    - name: Test
-      working-directory: ${{github.workspace}}/build
-      run: ctest -C ${{matrix.build_type}} --output-on-failure
+    - name: Save vcpkg cache
+      uses: actions/cache/save@v6
+      with:
+        path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
+        key: vcpkg-${{runner.os}}-${{runner.arch}}-${{matrix.triplet}}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}

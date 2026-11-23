@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.1)
+cmake_minimum_required (VERSION 3.5)
 # CXX language is required by GenerateExportHeader
 project(libopenvizsla LANGUAGES C CXX VERSION 0.2.0)
 if(NOT (CMAKE_VERSION VERSION_LESS "3.14.0"))
@@ -54,7 +54,7 @@ list(APPEND SOURCES
 list(APPEND LIBRARIES
 	LibUSB1::usb
 	LibFTDI1::ftdi1
-	LibZip::zip)
+	libzip::zip)
 
 add_library(openvizsla ${SOURCES})
 target_link_libraries(openvizsla ${LIBRARIES})
@@ -156,7 +156,7 @@ foreach(test_source IN ITEMS ${TESTS})
 	add_executable(${test_name} ${test_source})
 	target_link_libraries(${test_name} Check::checkShared openvizsla_static)
 	target_compile_definitions(${test_name} PRIVATE PROJECT_ROOT="${PROJECT_SOURCE_DIR}")
-	add_test(${test_name} ${test_name})
+	add_test(NAME ${test_name} COMMAND ${test_name})
 endforeach(test_source)
 
 install(TARGETS openvizsla

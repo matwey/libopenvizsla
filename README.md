@@ -1,5 +1,4 @@
 [![CMake](https://github.com/matwey/libopenvizsla/actions/workflows/cmake.yml/badge.svg)](https://github.com/matwey/libopenvizsla/actions/workflows/cmake.yml)
-[![CodeQL](https://github.com/matwey/libopenvizsla/actions/workflows/codeql.yml/badge.svg)](https://github.com/matwey/libopenvizsla/actions/workflows/codeql.yml)
 
 # libopenvizsla
 An attempt to reimplement [OpenVizsla](http://openvizsla.org/) host software in plain C.
@@ -24,6 +23,7 @@ Following components are required to build libopenvizsla:
 * [cmake] - cross-platform open-source build system;
 * [gperf] - a perfect hash function generator;
 * [libftdi] - FTDI USB userspace driver;
+* [libusb] - USB access library;
 * [libzip] - C library for reading, creating, and modifying zip archives;
 
 Then, the library can be compiled as the following:
@@ -33,6 +33,17 @@ cmake ..
 make all test
 ```
 
+### Building with vcpkg
+The dependencies can also be installed with [vcpkg] in manifest mode:
+```sh
+vcpkg install --triplet <triplet>
+```
+Then, configure CMake with the vcpkg toolchain:
+```sh
+cmake -B build -DCMAKE_TOOLCHAIN_FILE=<vcpkg-root>/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=<triplet>
+cmake --build build
+```
+
 ## Development
 Any pull-requests to the project are always welcome.
 
@@ -40,4 +51,6 @@ Any pull-requests to the project are always welcome.
 [cmake]:http://www.cmake.org/
 [gperf]:https://www.gnu.org/software/gperf/
 [libftdi]:https://www.intra2net.com/en/developer/libftdi/
+[libusb]:https://libusb.info/
 [libzip]:https://libzip.org/
+[vcpkg]:https://vcpkg.io/
